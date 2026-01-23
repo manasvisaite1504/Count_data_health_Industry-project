@@ -1,0 +1,174 @@
+---
+title: "MSc Health Data Science Project Title"
+author:
+  - name: "Manasvi Saite"
+    affil: 1
+affiliation:
+  - num: 1
+    address: "MSc Health Data Science, University of Galway"
+logoleft_name: "/Users/manasvi15/Downloads/Project/UOG_logo.png"
+
+# A1 Landscape
+poster_height: "594mm"
+poster_width: "841mm"
+
+# Layout
+column_numbers: 4
+column_margins: "0.5in"
+
+# Colours
+primary_colour: "#a80050"
+secondary_colour: "#84003d"
+accent_colour: "#e6007e"
+
+# Text sizes
+author_textcol: "white"
+title_textsize: "90pt"
+author_textsize: "60pt"
+body_textsize: "25pt"
+
+output:
+  posterdown::posterdown_html:
+    self_contained: true
+    pandoc_args: --mathjax
+    number_sections: false
+
+# Optional: creates PDF via Chrome when you Knit (comment out if you only want HTML)
+knit: pagedown::chrome_print
+---
+
+```{css, echo=FALSE}
+div.logo_left{ width: 20%; }
+div.poster_title{ width: 80%; }
+.section h4 { break-after: column; }
+div.footnotes { font-size: 18pt; }
+```
+
+<!--
+This is the GENERAL POSTER TEMPLATE.
+Step 1: Knit to HTML to see the poster layout.
+Step 2: Replace the placeholder text with your project content.
+Step 3: Add your tables/figures in the chunks below.
+-->
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, warning = FALSE, message = FALSE,
+  fig.align = "center", out.width = "100%"
+)
+options(knitr.table.format = "html")
+
+library(tidyverse)
+library(kableExtra)
+library(plotly)   # optional (for interactive plots in HTML)
+# library(readxl) # if your dataset is Excel
+```
+
+# Background and Problem
+
+Write 3–5 lines:
+- What is the problem?
+- Why is it important in health/clinical/public health context?
+- What is the gap you are addressing?
+
+[^1]: Example reference style (footnote). Replace with your own sources.
+
+# Objectives of Project
+
+1. Objective 1 (one short sentence)
+2. Objective 2
+3. Objective 3
+
+# Data Sources and Datasets
+
+**Dataset:** (name)  
+**Source:** (where it came from)  
+**Sample size:** (n = )  
+**Key variables:** (list 4–8 variables)
+
+```{r data_load, include=FALSE}
+# ===== LOAD YOUR DATA HERE =====
+# Put your file in a folder called "data" in the same directory as this Rmd.
+
+# CSV:
+# df <- readr::read_csv("data/your_dataset.csv")
+
+# Excel:
+# df <- readxl::read_excel("data/your_dataset.xlsx")
+
+# Quick check:
+# glimpse(df)
+```
+
+####
+
+# Early Results / Descriptive Statistics of Datasets
+
+## Table 1: Descriptive summary (replace with your own)
+
+Tip: Keep tables short and readable (A1 poster = big font, less rows).
+
+```{r table1, out.width='95%'}
+# Example (REPLACE with your columns):
+# table1_df <- df %>%
+#   summarise(
+#     n = n(),
+#     age_mean = mean(age, na.rm = TRUE),
+#     age_sd   = sd(age, na.rm = TRUE),
+#     male_pct = mean(sex == "Male", na.rm = TRUE) * 100
+#   )
+#
+# knitr::kable(table1_df, caption = "Table 1: Summary statistics", align = "c") %>%
+#   kable_styling(full_width = FALSE, font_size = 20)
+```
+
+## Figure 1: (replace caption + code)
+
+```{r fig1, out.width='90%', fig.cap='Figure 1: Your caption here', fig.height=4}
+# Example histogram (REPLACE):
+# ggplot(df, aes(x = age)) +
+#   geom_histogram(bins = 30) +
+#   theme_minimal(base_size = 22) +
+#   labs(x = "Age", y = "Count")
+```
+
+## Figure 2: (replace caption + code)
+
+```{r fig2, out.width='90%', fig.cap='Figure 2: Your caption here', fig.height=4}
+# Example relationship plot (REPLACE):
+# ggplot(df, aes(x = bmi, y = outcome)) +
+#   geom_point(alpha = 0.5) +
+#   geom_smooth(method = "lm", se = TRUE) +
+#   theme_minimal(base_size = 22) +
+#   labs(x = "BMI", y = "Outcome")
+```
+
+## Optional: Interactive plot (HTML only)
+
+```{r interactive, out.width='90%', fig.cap='Figure 3: Interactive plot (optional)', fig.height=4}
+# Example (REPLACE):
+# p <- ggplot(df, aes(x = age, y = bmi)) +
+#   geom_point(alpha = 0.5) +
+#   theme_minimal(base_size = 22)
+# plotly::ggplotly(p)
+```
+
+####
+
+# Next Project Steps
+
+- Next step 1 (e.g., data cleaning / feature engineering)
+- Next step 2 (e.g., modelling: logistic regression / survival / ML)
+- Next step 3 (e.g., validation / sensitivity analysis)
+
+# GitHub
+
+(Optional) Add your repository link:  
+<https://github.com/yourusername/your-repo>
+
+# References
+
+Add references as footnotes like this:  
+Example: This method is widely used in healthcare analytics.[^2]
+
+[^2]: Author, Title, Journal, Year.
