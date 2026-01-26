@@ -1,10 +1,8 @@
 ---
-title: "MSc Health Data Science Project Title"
+title: "Count Data On Health Industry"
 author:
-  - name: "Manasvi Saite"
-    affil: 1
+  - name: "Manasvi Saite & Kaushal Mayur"
 affiliation:
-  - num: 1
     address: "MSc Health Data Science, University of Galway"
 logoleft_name: "/Users/manasvi15/Downloads/Project/UOG_logo.png"
 
@@ -64,20 +62,22 @@ library(plotly)   # optional (for interactive plots in HTML)
 # library(readxl) # if your dataset is Excel
 ```
 
-# Background and Problem
+# Background and Objective
 
-Write 3–5 lines:
-- What is the problem?
-- Why is it important in health/clinical/public health context?
-- What is the gap you are addressing?
+Healthcare systems routinely generate count data, such as the number of hospital admissions.
+This project focuses on analysing hospitalisation counts based on disease type, sex, and other patient-related factors.
 
-[^1]: Example reference style (footnote). Replace with your own sources.
+Hospitalisation data consist of non-negative integers and frequently display overdispersion and a high number of zero admissions, where many individuals experience no hospitalisations during the study period. These characteristics make standard regression methods unsuitable.
 
-# Objectives of Project
+To address this, count data models provide an appropriate statistical framework for modelling hospital admissions and understanding patterns of healthcare utilisation.
 
-1. Objective 1 (one short sentence)
-2. Objective 2
-3. Objective 3
+Objectives of Project
+
+To analyse hospitalisation counts across different disease groups.
+
+To examine the effect of sex and other patient characteristics on hospitalisation rates.
+
+To apply suitable count data models for analysing hospital admission data.
 
 # Data Sources and Datasets
 
@@ -164,7 +164,7 @@ Tip: Keep tables short and readable (A1 poster = big font, less rows).
 # GitHub
 
 (Optional) Add your repository link:  
-<https://github.com/yourusername/your-repo>
+<https://https://github.com/manasvisaite1504/Count_data_health_Industry-project>
 
 # References
 
