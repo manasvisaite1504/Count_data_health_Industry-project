@@ -37,7 +37,7 @@ knit: pagedown::chrome_print
 
 ```{css, echo=FALSE}
 div.logo_left{ width: 20%; }
-div.poster_title{ width: 80%; }
+div.poster_title{ width: 100%; }
 .section h4 { break-after: column; }
 div.footnotes { font-size: 18pt; }
 ```
@@ -81,76 +81,213 @@ To apply suitable count data models for analysing hospital admission data.
 
 # Data Sources and Datasets
 
-**Dataset:** (name)  
-**Source:** (where it came from)  
-**Sample size:** (n = )  
-**Key variables:** (list 4–8 variables)
+Dataset: Hospital Readmissions 30k
+
+Source: Simulated inpatient hospital records for 3,000 adult patients from kaggle.com
+
+Sample size: 3,000 patients (one row per patient).
+
+Key variables:
+
+1.patient_id: Unique identifier for each patient record.
+
+2.age: Age in years at the time of admission.
+
+3. gender: Recorded sex/gender (Male, Female, Other).
+
+4. blood_pressure: Admission blood pressure in systolic/diastolic format (e.g. 130/72).
+
+5. cholesterol: Total cholesterol level (numeric, mg/dL or comparable units).
+
+6. bmi: Body mass index, continuous measure of weight relative to height.
+
+7. diabetes: Indicator of diagnosed diabetes (Yes/No).
+
+8. hypertension: Indicator of diagnosed hypertension (Yes/No).
+
+9. medication_count: Number of concurrent medications at discharge.
+
+10. length_of_stay: Length of index hospital stay in days.
+
+11. discharge_destination: Discharge location (Home, Nursing_Facility, Rehab).
+
+12 .readmitted_30_days: Binary outcome indicating whether the patient was readmitted to hospital within 30 days of discharge (Yes/No).
 
 ```{r data_load, include=FALSE}
-# ===== LOAD YOUR DATA HERE =====
-# Put your file in a folder called "data" in the same directory as this Rmd.
+library(readr)
+library(dplyr)
+library(scales)
+library(kableExtra)
 
-# CSV:
-# df <- readr::read_csv("data/your_dataset.csv")
-
-# Excel:
-# df <- readxl::read_excel("data/your_dataset.xlsx")
-
-# Quick check:
-# glimpse(df)
+hospital <- read_csv("hospital_readmissions_30k.csv")
 ```
 
 ####
 
 # Early Results / Descriptive Statistics of Datasets
 
-## Table 1: Descriptive summary (replace with your own)
+## Table 1: Descriptive summary:
 
-Tip: Keep tables short and readable (A1 poster = big font, less rows).
+The hospital_readmissions_30k dataset contains **30,000 adult inpatients** aged 18–90+ years (**mean 54±21 years**) spanning a broad clinical spectrum. Lipid and weight profiles show average **cholesterol 225±44 mg/dL** and **BMI 28.9±6.3** (overweight), with comorbidities prevalent (**49% diabetes, 49% hypertension**). Both conditions associate with elevated **30-day readmission risk (12.2% cohort rate)**. Hospital course and blood pressure (110–160/70–100 mmHg) show median **length of stay 5 days (IQR 5)**, **5 medications (IQR 6)**. Discharge destinations favor home (75%), followed by nursing facilities (15%) and rehab (10%); readmission rates double from facilities vs home (20% vs 10%). Medication burden correlates with readmission risk.
 
-```{r table1, out.width='95%'}
-# Example (REPLACE with your columns):
-# table1_df <- df %>%
-#   summarise(
-#     n = n(),
-#     age_mean = mean(age, na.rm = TRUE),
-#     age_sd   = sd(age, na.rm = TRUE),
-#     male_pct = mean(sex == "Male", na.rm = TRUE) * 100
-#   )
-#
-# knitr::kable(table1_df, caption = "Table 1: Summary statistics", align = "c") %>%
-#   kable_styling(full_width = FALSE, font_size = 20)
+
+
+
+
+
+```{r table1, out.width='95%', fig.cap=""}
+summary_vals <- hospital %>%
+  summarise(
+    n = n(),
+    age_mean = mean(age, na.rm = TRUE), age_sd = sd(age, na.rm = TRUE),
+    bmi_mean = mean(bmi, na.rm = TRUE), bmi_sd = sd(bmi, na.rm = TRUE),
+    chol_mean = mean(cholesterol, na.rm = TRUE), chol_sd = sd(cholesterol, na.rm = TRUE),
+    los_median = median(length_of_stay, na.rm = TRUE), los_iqr = IQR(length_of_stay, na.rm = TRUE),
+    meds_median = median(medication_count, na.rm = TRUE), meds_iqr = IQR(medication_count, na.rm = TRUE),
+    readmit_rate = mean(readmitted_30_days == "Yes", na.rm = TRUE),
+    diabetes_yes = mean(diabetes == "Yes", na.rm = TRUE),
+    hypertension_yes = mean(hypertension == "Yes", na.rm = TRUE)
+  )
+
+tab1 <- tibble::tibble(
+  Measure = c("N patients", "Age, mean (SD)", "BMI, mean (SD)", "Cholesterol, mean (SD)",
+              "LOS, median (IQR)", "Meds, median (IQR)", 
+              "Readmitted ≤30 days", "Diabetes (%)", "Hypertension (%)"),
+  Value = c(
+    format(summary_vals$n, big.mark = ","),
+    sprintf("%.0f (%.0f)", summary_vals$age_mean, summary_vals$age_sd),
+    sprintf("%.1f (%.1f)", summary_vals$bmi_mean, summary_vals$bmi_sd),
+    sprintf("%.0f (%.0f)", summary_vals$chol_mean, summary_vals$chol_sd),
+    sprintf("%d (IQR %.0f)", summary_vals$los_median, summary_vals$los_iqr),
+    sprintf("%d (IQR %.0f)", summary_vals$meds_median, summary_vals$meds_iqr),
+    scales::percent(summary_vals$readmit_rate, accuracy = 0.1),
+    scales::percent(summary_vals$diabetes_yes, accuracy = 0.1),
+    scales::percent(summary_vals$hypertension_yes, accuracy = 0.1)
+  )
+)
+
+knitr::kable(tab1, col.names = c("Measure", "Value"), 
+             caption = " Baseline characteristics of 3,000 hospitalized patients.") %>%
+  kable_styling(font_size = 20, full_width = FALSE)
+
 ```
 
-## Figure 1: (replace caption + code)
 
-```{r fig1, out.width='90%', fig.cap='Figure 1: Your caption here', fig.height=4}
-# Example histogram (REPLACE):
-# ggplot(df, aes(x = age)) +
-#   geom_histogram(bins = 30) +
-#   theme_minimal(base_size = 22) +
-#   labs(x = "Age", y = "Count")
+
+
+
+
+## Figure 1: (Thirty‑day hospital readmission rate by diabetes status.)
+
+```{r fig1, out.width='85%', fig.cap='30-day readmission rate by diabetes status.', fig.height=5}
+library(dplyr)
+library(ggplot2)
+
+fig1_data <- hospital %>%
+  group_by(diabetes) %>%
+  summarise(
+    n = n(),
+    readmit_rate = mean(readmitted_30_days == "Yes", na.rm = TRUE)
+  )
+
+ggplot(fig1_data, aes(x = diabetes, y = readmit_rate)) +
+  geom_col(fill = "#a80050") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 5)) +
+  labs(
+    x = "Diabetes status",
+    y = "30-day readmission rate",
+    title = ""
+  ) +
+  theme_minimal(base_size = 22) +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 10)),
+    axis.title.y = element_text(margin = margin(r = 10))
+  )
+
 ```
 
-## Figure 2: (replace caption + code)
 
-```{r fig2, out.width='90%', fig.cap='Figure 2: Your caption here', fig.height=4}
-# Example relationship plot (REPLACE):
-# ggplot(df, aes(x = bmi, y = outcome)) +
-#   geom_point(alpha = 0.5) +
-#   geom_smooth(method = "lm", se = TRUE) +
-#   theme_minimal(base_size = 22) +
-#   labs(x = "BMI", y = "Outcome")
+
+## Figure 2: (Age distribution (histogram)
+
+```{r fig2, out.width = "98%", fig.height = 7}
+library(ggplot2)
+
+ggplot(hospital, aes(x = age, fill = gender)) +
+  geom_histogram(bins = 30, color = "white", alpha = 0.85, position = "stack") +
+  scale_fill_manual(
+    values = c(Female = "lightpink", Male = "lightblue", Other = "darkslategray3"),
+    name = NULL
+  ) +
+  labs(
+    title    = "Age Distribution of 30,000\nHospitalized Patients",
+    subtitle = "Stacked bars = totals per age bin; segments = gender counts",
+    x = "Age (years)",
+    y = "Number of patients"
+  ) +
+  scale_x_continuous(breaks = seq(0, 100, 20), expand = c(0.01, 0)) +
+  theme_minimal(base_size = 20) +
+  theme(
+    plot.title    = element_text(hjust = 0.5, size = 18, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 13),
+    legend.position = "bottom",
+    legend.text = element_text(size = 12),
+    panel.grid.minor = element_blank()
+  )
+
+
 ```
 
-## Optional: Interactive plot (HTML only)
 
-```{r interactive, out.width='90%', fig.cap='Figure 3: Interactive plot (optional)', fig.height=4}
-# Example (REPLACE):
-# p <- ggplot(df, aes(x = age, y = bmi)) +
-#   geom_point(alpha = 0.5) +
-#   theme_minimal(base_size = 22)
-# plotly::ggplotly(p)
+
+
+
+## Figure 3: Interactive Age Distribution
+
+
+```{r fig2-legend-bottom, echo=FALSE, warning=FALSE, message=FALSE, fig.width=12, fig.height=7}
+library(ggplot2)
+library(plotly)
+library(dplyr)
+
+hospital_clean <- hospital %>%
+  filter(!is.na(age), age >= 0, age <= 100)
+
+p <- ggplot(hospital_clean, aes(x = age, fill = gender)) +
+  geom_histogram(bins = 30, color = "white", alpha = 0.9, position = "stack") +
+  scale_fill_manual(
+    values = c(Female = "lightpink", Male = "lightblue", Other = "darkslategray3"),
+    name = NULL   # removes "gender" in ggplot legend
+  ) +
+  labs(
+    title = "Figure 2: Age Distribution by Gender",
+    x = "Age (years)",
+    y = "Patients",
+    fill = NULL   # also removes legend title
+  ) +
+  guides(fill = guide_legend(title = NULL, nrow = 1)) +
+  scale_x_continuous(breaks = seq(0, 100, 20)) +
+  theme_minimal(base_size = 16) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    legend.position = "bottom",
+    legend.direction = "horizontal"
+  )
+
+ggplotly(p, tooltip = c("fill", "x", "y")) %>%
+  layout(
+    height = 600,
+    margin = list(t = 120, b = 170, l = 80, r = 40),
+    legend = list(
+      orientation = "h",
+      title = list(text = ""),     # removes "gender" in plotly legend
+      x = 0.5, xanchor = "center",
+      y = -0.25, yanchor = "top"
+    )
+  ) %>%
+  config(displayModeBar = TRUE, displaylogo = FALSE)
+
+
 ```
 
 ####
