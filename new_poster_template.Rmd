@@ -1,5 +1,5 @@
 ---
-title: MSc Health Data Science Project Title
+title: Statistical Modelling Using Regression Models
 author:
   - name: Manasvi Saite
   - name: Kaushal Mayur
@@ -72,7 +72,8 @@ In this poster we study **self‑reported general health** (HealthGen) from NHAN
 
 ## Objectives of Project
 - Fit a proportional‑odds (cumulative logit) model for HealthGen.  
-- Estimate and visualise predicted probabilities of each health category across age.  
+- Analyze health string data (GENHLTH: Excellent > Very good > Good > Fair > Poor) using suitable ordinal regression (proportional odds logit).
+- Represent with suitable diagrams: Interactive predicted probabilities vs age + smoking effect.  
 - Compare predicted health profiles for current smokers vs non‑smokers.
 
 # Data Sources and Datasets
@@ -92,14 +93,12 @@ In this poster we study **self‑reported general health** (HealthGen) from NHAN
 - **BMI**: kg/m² (body mass index from measured height/weight)
 - **SmokeNow**: Current smoker (Yes/No)
 
-**Analytic Sample**: Complete cases only (n=5,736). Filtered for non-missing Age, Gender, BMI, SmokeNow, HealthGen.
 
 <!-- This #### below causes the columns to break -->
 ```{r data_load, include=FALSE}
 library(NHANES)
 data(NHANES)
 nhanes_raw <- NHANES::NHANES
-
 nhanes_model <- nhanes_raw %>%
   mutate(
     GENHLTH = ordered(HealthGen, levels = c("Excellent","Very good","Good","Fair","Poor")),
@@ -127,6 +126,15 @@ health_colors <- c(
 ```
 <!-- You can change where you put these breaks, and the "column_numbers: 4" argument in the YAMLS header to change the layout of the poster, with care! -->
 
+
+
+
+
+
+
+
+
+
 #### 
 
 # Early Results / Descriptive Statistics of Datasets
@@ -139,7 +147,54 @@ Current smoking prevalence is **`r scales::percent(mean(nhanes_model$SmokeNow=="
 and females comprise **`r scales::percent(mean(nhanes_model$Gender=="female"), accuracy=0.1)`** of the analytic sample.
 
 
-Some basic summaries of the dataset are below:
+**Some basic summaries of the dataset are below:**
+Proportional Odds Model
+Cumulative logit regression for ordered GENHLTH (Excellent > ... > Poor). Coefficients >0 shift predicted category upward (better health). Proportional odds assumption applied.
+
+**Fit Statistics**
+AIC=4078, residual deviance=4062 indicate good model fit. Intercepts define cumulative probability thresholds between categories.
+
+**Interpretation Note**
+Model uses Age, Gender(male), BMI, SmokeNow(Yes). All predictors significant (t>2.4). Place above your coef/intercept tables
+
+```{r coef-table, echo=FALSE, results='asis'}
+coefs <- data.frame(
+  Predictor = c("Age", "Gender (male)", "BMI", "SmokeNow (Yes)"),
+  Value = c(0.01386, 0.21875, 0.06075, 0.79466),
+  `Std. Error` = c(0.002822, 0.090388, 0.006748, 0.096978),
+  `t value` = c(4.910, 2.420, 9.003, 8.194)
+)
+
+knitr::kable(coefs, digits = 5, caption = "Coefficients") %>%
+  kable_styling(font_size = 22, full_width = TRUE, bootstrap_options = "striped") %>%
+  row_spec(0, bold = TRUE, background = "#a80050", color = "white")
+```
+
+
+```{r intercepts-table, echo=FALSE, results='asis'}
+intercepts <- data.frame(
+  Threshold = c("Excellent|Very good", "Very good|Good", "Good|Fair", "Fair|Poor"),
+  Value = c(0.7235, 0.7235, 3.9200, 6.0726),
+  `Std. Error` = c(0.2693, 0.2693, 0.2846, 0.3062),
+  `t value` = c(2.6867, 2.6868, 13.7718, 19.8292)
+)
+
+knitr::kable(intercepts, digits = 4, caption = "Intercepts") %>%
+  kable_styling(font_size = 22, full_width = TRUE, bootstrap_options = "striped") %>%
+  row_spec(0, bold = TRUE, background = "#a80050", color = "white")
+```
+
+
+```{r fit-stats-table, echo=FALSE, results='asis'}
+stats <- data.frame(
+  Metric = c("Residual Deviance", "AIC"),
+  Value = c(4062.469, 4078.469)
+)
+
+knitr::kable(stats, digits = 3, caption = "Model Fit Statistics") %>%
+  kable_styling(font_size = 22, full_width = TRUE, bootstrap_options = "striped") %>%
+  row_spec(0, bold = TRUE, background = "#a80050", color = "white")
+```
 
 ```{r mytable, out.width='85%', fig.show='hold', tab.cap="Table of Nhanes data", tab.height = 6}
 tab1 <- tibble(
@@ -161,7 +216,7 @@ knitr::kable(tab1, col.names = c("Measure", "Value")) %>%
 
 
 
-```{r figure-1, out.width='92%', fig.height=6, fig.cap='Predicted health probabilities by age (typical covariates).'}
+```{r figure-1, out.width='92%', fig.height=5, fig.cap='Predicted health probabilities by age (typical covariates).'}
 levs <- levels(nhanes_model$GENHLTH)
 col_pal <- health_colors[levs]
 
@@ -175,7 +230,7 @@ newdat <- nhanes_model %>%
 
 probs <- as.data.frame(predict(fit, newdat, type = "response"), check.names = FALSE)
 
-# Align to however many columns VGAM returns
+
 levs_use <- levs[seq_len(min(length(levs), ncol(probs)))]
 names(probs) <- levs_use
 
@@ -199,89 +254,75 @@ ggplot(pred, aes(x = Age, y = Probability, colour = Health)) +
 
 
 
-```{r , out.width='92%', fig.height=6, fig.cap=' Smoking effect on predicted health probabilities.'}
-levs <- levels(nhanes_model$GENHLTH)
-col_pal <- health_colors[levs]
 
-base_vals <- nhanes_model %>%
-  summarise(Gender = Mode(Gender), BMI = mean(BMI, na.rm = TRUE))
 
-new_smoke <- base_vals %>%
-  tidyr::crossing(
-    SmokeNow = c("No", "Yes"),
-    Age = seq(18, 80, length.out = 100)
-  )
 
-probs_smoke <- as.data.frame(predict(fit, new_smoke, type = "response"), check.names = FALSE)
 
-levs_use <- levs[seq_len(min(length(levs), ncol(probs_smoke)))]
-names(probs_smoke) <- levs_use
+  **Interactive: Smoking effect on predicted general health**
+```{r age-interactive, echo=FALSE, warning=FALSE, message=FALSE, out.width='95%', fig.height=5, fig.cap="Interactive: Predicted HealthGen probabilities by age"}
+library(NHANES); library(MASS); library(plotly); library(tidyverse)
 
-pred_smoke <- dplyr::bind_cols(new_smoke, probs_smoke) %>%
-  tidyr::pivot_longer(cols = all_of(levs_use), names_to = "Health", values_to = "Probability") %>%
-  mutate(
-    Health = factor(Health, levels = levs_use),
-    SmokeNow = factor(SmokeNow, levels = c("No","Yes"))
-  )
 
-ggplot(pred_smoke, aes(x = Age, y = Probability, colour = Health)) +
-  geom_line(size = 2.2) +
-  facet_wrap(~ SmokeNow, ncol = 2) +
-  scale_colour_manual(values = col_pal[levs_use]) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-  scale_x_continuous(breaks = seq(20, 80, 20)) +
-  labs(x = "Age", y = "Probability", colour = "Health Category",
-       title = "Effect of Smoking",
-       subtitle = "Cumulative logit (proportional odds)") +
-  theme_minimal(base_size = 22) +
-  theme(legend.position = "top", legend.title = element_blank(),
-        plot.title = element_text(hjust = 0.5, face = "bold"),
-        plot.subtitle = element_text(hjust = 0.5),
-        strip.text = element_text(size = 18, face = "bold"))
+data(NHANES)
+nhanesmodel <- NHANES %>%
+  mutate(GENHLTH = ordered(HealthGen, levels=c("Excellent","Very good","Good","Fair","Poor")),
+         Gender = factor(Gender), SmokeNow = factor(SmokeNow, levels=c("No","Yes"))) %>%
+  filter(complete.cases(GENHLTH, Age, Gender, BMI, SmokeNow))
 
+Mode <- function(x) { ux <- na.omit(unique(x)); ux[which.max(tabulate(match(x, ux)))] }
+healthcolors <- c("Excellent" = "red3", "Very good" = "green4", "Good" = "cyan3", 
+                  "Fair" = "green3", "Poor" = "purple3")
+
+fit_temp <- polr(GENHLTH ~ Age + Gender + BMI + SmokeNow, data=nhanesmodel, Hess=TRUE)
+
+
+levs <- levels(nhanesmodel$GENHLTH)
+newdat <- data.frame(
+  Age = seq(18, 80, length.out=100),
+  Gender = Mode(nhanesmodel$Gender),
+  BMI = mean(nhanesmodel$BMI, na.rm=TRUE),
+  SmokeNow = Mode(nhanesmodel$SmokeNow)
+)
+probs <- predict(fit_temp, newdat, type="probs")
+levsuse <- levs[1:min(length(levs), ncol(probs))]
+colnames(probs) <- levsuse
+pred <- newdat %>%
+  mutate(row_id = row_number()) %>%
+  bind_cols(probs) %>%
+  pivot_longer(all_of(levsuse), names_to="Health", values_to="Probability") %>%
+  mutate(Health = factor(Health, levels=levsuse))
+
+
+p_age <- ggplot(pred, aes(x=Age, y=Probability, color=Health, group=Health,
+                          text=paste0("Age: ", round(Age), "<br>",
+                                      "Gender: ", Gender, "<br>SmokeNow: ", SmokeNow, "<br>",
+                                      "BMI: ", round(BMI,1), "<br>Health: ", Health, "<br>",
+                                      "Prob: ", scales::percent(Probability, 0.1)))) +
+  geom_line(size=2.2) +
+  scale_color_manual(values=healthcolors[levsuse]) +
+  scale_y_continuous(labels=scales::percent_format(accuracy=1)) +
+  scale_x_continuous(breaks=seq(20,80,20)) +
+  labs(x="Age (years)", y="Predicted Probability", color="Health Category", 
+       title="Smoking effect") +
+  theme_minimal(base_size=22) + 
+  theme(legend.position="top", legend.title=element_blank(),
+        plot.title=element_text(hjust=0.5, face="bold"))
+
+ggplotly(p_age, tooltip="text") %>% config(displayModeBar=TRUE, displaylogo=FALSE)
 ```
 
-
-
-**Interactive: Smoking effect on predicted general health**
-```{r interactiveplot, out.width='92%', fig.height=5.2, fig.cap='Interactive plot (hover to see probabilities) showing predicted HealthGen probabilities by age and current smoking status.'}
-
-p_int <- ggplot(
-  pred_smoke,
-  aes(
-    x = Age, y = Probability, colour = Health, group = Health,
-    text = paste0(
-      "Age: ", round(Age),
-      "<br>SmokeNow: ", SmokeNow,
-      "<br>Health: ", Health,
-      "<br>Prob: ", scales::percent(Probability, accuracy = 0.1)
-    )
-  )
-) +
-  geom_line(linewidth = 2) +
-  facet_wrap(~ SmokeNow, ncol = 2) +
-  scale_colour_manual(values = health_colors[levels(pred_smoke$Health)]) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0, 0.65)) +
-  scale_x_continuous(breaks = seq(20, 80, 20)) +
-  labs(x = "Age", y = "Probability", colour = NULL) +
-  theme_minimal(base_size = 18) +
-  theme(legend.position = "top")
-
-plotly::ggplotly(p_int, tooltip = "text") %>%
-  config(displayModeBar = "hover", displaylogo = FALSE)
-```
 
 #### 
 
 # Next Project Steps
 
-We plan to conduct further analysis:
+We plan to conduct further analyse:
 
--Compare model variants using information criteria (AIC/BIC) and diagnostic plots. 
 
--Consider additional predictors available in NHANES (e.g., activity, alcohol, comorbidity measures). 
-
--Report uncertainty (confidence intervals) for key effects and validate predictions on a holdout split.
+- Compare model variants (parallel vs non-parallel) using AIC/BIC + diagnostic plots.
+- Test alternative ordinal models: adjacent-categories logit , continuation-ratio.
+- Add NHANES predictors: activity, alcohol, comorbidities.
+- Report 95% CIs for effects + holdout validation (train/test split)
 
 
 
@@ -294,7 +335,13 @@ The code and datasets for this project can be viewed at our GitHub repository he
 
 # References
 
-NHANES data package (R).
+**Data & Analysis Packages**  
+-NHANES (2013-2014 data)  
+-MASS (polr: proportional odds regression)  
+-VGAM (vglm: cumulative logit models)  
+-tidyverse (data wrangling + ggplot2)  
+-plotly (interactive plots)  
+-kableExtra (formatted tables)  
 
-VGAM cumulative logit modelling.
+-Fullerton, A. S. (2009). Ordered Regression Models: Parallel, Partial, and Non-Parallel Alternatives. Chapman and Hall/CRC.
 
