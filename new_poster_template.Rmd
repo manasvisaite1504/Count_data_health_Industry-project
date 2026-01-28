@@ -1,0 +1,300 @@
+---
+title: MSc Health Data Science Project Title
+author:
+  - name: Manasvi Saite
+  - name: Kaushal Mayur
+    affil: 1
+affiliation:
+  - num: 1
+    address: School of Mathematical and Statistical Sciences, University of Galway
+logoleft_name: "/Users/manasvi15/Downloads/Project/UOG_logo.png"
+
+poster_height: "594mm"
+poster_width: "841mm"
+column_numbers: 4
+column_margins: "0.5in"	
+primary_colour:	"#a80050"	# Secondary colour use for poster design.
+secondary_colour:	"#84003d"	# Main colour used for poster design.
+accent_colour:	"#e6007e"	# A third colour option.
+author_textcol: "white"
+title_textsize: "80pt"
+author_textsize: "50pt"
+body_textsize: "20pt"
+output: 
+  posterdown::posterdown_html:
+    self_contained: true
+    pandoc_args: --mathjax
+    number_sections: false
+knit: pagedown::chrome_print
+---
+
+```{css, echo=FALSE}
+div.logo_left{
+  width: 20%;
+}
+div.poster_title{
+  width: 80%;
+}
+a, .section, p {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.section h4 { break-after: column; }
+div.footnotes { font-size: 18pt; }
+/* Add space between table and next plot */
+div.chunk { margin-bottom: 20px; }
+table { margin-bottom: 25px !important; }
+
+```
+
+<!-- Don't change anything above, except the title and author names, unless you know what you are doing. -->
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, warning = FALSE, message = FALSE,
+  fig.align = "center", out.width = "100%"
+)
+
+options(knitr.table.format = "html")
+
+library(tidyverse)
+library(kableExtra)
+library(scales)
+library(VGAM)
+library(NHANES)
+library(plotly)
+```
+
+# Background and Problem
+
+Healthcare analytics often requires models suited to non‑standard outcomes (e.g., counts or ordered categories), where standard linear regression is inappropriate.  
+In this poster we study **self‑reported general health** (HealthGen) from NHANES, recorded on an ordered scale from "Excellent" to "Poor", and use an ordinal regression framework to quantify how age, BMI, sex and smoking shift health ratings.
+
+## Objectives of Project
+- Fit a proportional‑odds (cumulative logit) model for HealthGen.  
+- Estimate and visualise predicted probabilities of each health category across age.  
+- Compare predicted health profiles for current smokers vs non‑smokers.
+
+# Data Sources and Datasets
+
+
+**NHANES Overview**: Nationally representative survey of ~10,000 US residents annually. Combines interviews, physical exams, and lab tests from civilian noninstitutionalized population. [web:297]
+
+**Dataset**: NHANES 2013-2014 (R package `NHANES`). ~9,700 participants. [web:303]
+
+**HealthGen (Outcome)**: Self-reported general health rating (ages ≥12). 5 ordered categories:
+- **Excellent** (best) → **Very good** → **Good** → **Fair** → **Poor** (worst)
+- Typical US distribution: 15% Excellent, 41% Very good, 49% Good, 16% Fair, 4% Poor [web:317]
+
+**Key Predictors** (supervisor-specified model):
+- **Age**: Years (continuous, adults only)
+- **Gender**: Male/Female
+- **BMI**: kg/m² (body mass index from measured height/weight)
+- **SmokeNow**: Current smoker (Yes/No)
+
+**Analytic Sample**: Complete cases only (n=5,736). Filtered for non-missing Age, Gender, BMI, SmokeNow, HealthGen.
+
+<!-- This #### below causes the columns to break -->
+```{r data_load, include=FALSE}
+library(NHANES)
+data(NHANES)
+nhanes_raw <- NHANES::NHANES
+
+nhanes_model <- nhanes_raw %>%
+  mutate(
+    GENHLTH = ordered(HealthGen, levels = c("Excellent","Very good","Good","Fair","Poor")),
+    Gender  = factor(Gender),
+    SmokeNow = factor(SmokeNow, levels = c("No","Yes"))
+  ) %>%
+  filter(complete.cases(GENHLTH, Age, Gender, BMI, SmokeNow)) %>%
+  mutate(GENHLTH = droplevels(GENHLTH))
+
+fit <- VGAM::vglm(
+  GENHLTH ~ Age + Gender + BMI + SmokeNow,
+  family = VGAM::cumulative(link = "logitlink", parallel = TRUE),
+  data = nhanes_model
+)
+
+Mode <- function(x) {
+  ux <- na.omit(unique(x))
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+health_colors <- c(
+  "Excellent"="red3","Very good"="green4","Good"="cyan3","Fair"="green3","Poor"="purple3"
+)
+
+```
+<!-- You can change where you put these breaks, and the "column_numbers: 4" argument in the YAMLS header to change the layout of the poster, with care! -->
+
+#### 
+
+# Early Results / Descriptive Statistics of Datasets
+
+The modelling dataset includes **`r format(nrow(nhanes_model), big.mark=",")`** complete cases with mean age
+**`r sprintf("%d±%d", round(mean(nhanes_model$Age)), round(sd(nhanes_model$Age)))`** years and mean BMI
+**`r sprintf("%.1f±%.1f", mean(nhanes_model$BMI), sd(nhanes_model$BMI))`** kg/m².
+
+Current smoking prevalence is **`r scales::percent(mean(nhanes_model$SmokeNow=="Yes"), accuracy=0.1)`**
+and females comprise **`r scales::percent(mean(nhanes_model$Gender=="female"), accuracy=0.1)`** of the analytic sample.
+
+
+Some basic summaries of the dataset are below:
+
+```{r mytable, out.width='85%', fig.show='hold', tab.cap="Table of Nhanes data", tab.height = 6}
+tab1 <- tibble(
+  Measure = c("N participants", "Age (mean ± SD)", "BMI (mean ± SD)", "Current smokers (%)", "Females (%)"),
+  Value = c(
+    format(nrow(nhanes_model), big.mark = ","),
+    sprintf("%d ± %d", round(mean(nhanes_model$Age)), round(sd(nhanes_model$Age))),
+    sprintf("%.1f ± %.1f", mean(nhanes_model$BMI), sd(nhanes_model$BMI)),
+    scales::percent(mean(nhanes_model$SmokeNow == "Yes"), accuracy = 0.1),
+    scales::percent(mean(nhanes_model$Gender == "female"), accuracy = 0.1)
+  )
+)
+
+knitr::kable(tab1, col.names = c("Measure", "Value")) %>%
+  kable_styling(font_size = 22, full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = "#a80050", color = "white")
+
+```
+
+
+
+```{r figure-1, out.width='92%', fig.height=6, fig.cap='Predicted health probabilities by age (typical covariates).'}
+levs <- levels(nhanes_model$GENHLTH)
+col_pal <- health_colors[levs]
+
+newdat <- nhanes_model %>%
+  summarise(
+    Gender = Mode(Gender),
+    BMI = mean(BMI, na.rm = TRUE),
+    SmokeNow = Mode(SmokeNow)
+  ) %>%
+  tidyr::crossing(Age = seq(18, 80, length.out = 100))
+
+probs <- as.data.frame(predict(fit, newdat, type = "response"), check.names = FALSE)
+
+# Align to however many columns VGAM returns
+levs_use <- levs[seq_len(min(length(levs), ncol(probs)))]
+names(probs) <- levs_use
+
+pred <- dplyr::bind_cols(newdat, probs) %>%
+  tidyr::pivot_longer(cols = all_of(levs_use), names_to = "Health", values_to = "Probability") %>%
+  mutate(Health = factor(Health, levels = levs_use))
+
+ggplot(pred, aes(x = Age, y = Probability, colour = Health)) +
+  geom_line(size = 2.2) +
+  scale_colour_manual(values = col_pal[levs_use]) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_x_continuous(breaks = seq(20, 80, 20)) +
+  labs(x = "Age", y = "Probability", colour = "Health Category",
+       title = "Predicted Probability") +
+  theme_minimal(base_size = 22) +
+  theme(legend.position = "top", legend.title = element_blank(),
+        plot.title = element_text(hjust = 0.5, face = "bold"))
+
+
+```
+
+
+
+```{r , out.width='92%', fig.height=6, fig.cap=' Smoking effect on predicted health probabilities.'}
+levs <- levels(nhanes_model$GENHLTH)
+col_pal <- health_colors[levs]
+
+base_vals <- nhanes_model %>%
+  summarise(Gender = Mode(Gender), BMI = mean(BMI, na.rm = TRUE))
+
+new_smoke <- base_vals %>%
+  tidyr::crossing(
+    SmokeNow = c("No", "Yes"),
+    Age = seq(18, 80, length.out = 100)
+  )
+
+probs_smoke <- as.data.frame(predict(fit, new_smoke, type = "response"), check.names = FALSE)
+
+levs_use <- levs[seq_len(min(length(levs), ncol(probs_smoke)))]
+names(probs_smoke) <- levs_use
+
+pred_smoke <- dplyr::bind_cols(new_smoke, probs_smoke) %>%
+  tidyr::pivot_longer(cols = all_of(levs_use), names_to = "Health", values_to = "Probability") %>%
+  mutate(
+    Health = factor(Health, levels = levs_use),
+    SmokeNow = factor(SmokeNow, levels = c("No","Yes"))
+  )
+
+ggplot(pred_smoke, aes(x = Age, y = Probability, colour = Health)) +
+  geom_line(size = 2.2) +
+  facet_wrap(~ SmokeNow, ncol = 2) +
+  scale_colour_manual(values = col_pal[levs_use]) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_x_continuous(breaks = seq(20, 80, 20)) +
+  labs(x = "Age", y = "Probability", colour = "Health Category",
+       title = "Effect of Smoking",
+       subtitle = "Cumulative logit (proportional odds)") +
+  theme_minimal(base_size = 22) +
+  theme(legend.position = "top", legend.title = element_blank(),
+        plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5),
+        strip.text = element_text(size = 18, face = "bold"))
+
+```
+
+
+
+**Interactive: Smoking effect on predicted general health**
+```{r interactiveplot, out.width='92%', fig.height=5.2, fig.cap='Interactive plot (hover to see probabilities) showing predicted HealthGen probabilities by age and current smoking status.'}
+
+p_int <- ggplot(
+  pred_smoke,
+  aes(
+    x = Age, y = Probability, colour = Health, group = Health,
+    text = paste0(
+      "Age: ", round(Age),
+      "<br>SmokeNow: ", SmokeNow,
+      "<br>Health: ", Health,
+      "<br>Prob: ", scales::percent(Probability, accuracy = 0.1)
+    )
+  )
+) +
+  geom_line(linewidth = 2) +
+  facet_wrap(~ SmokeNow, ncol = 2) +
+  scale_colour_manual(values = health_colors[levels(pred_smoke$Health)]) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0, 0.65)) +
+  scale_x_continuous(breaks = seq(20, 80, 20)) +
+  labs(x = "Age", y = "Probability", colour = NULL) +
+  theme_minimal(base_size = 18) +
+  theme(legend.position = "top")
+
+plotly::ggplotly(p_int, tooltip = "text") %>%
+  config(displayModeBar = "hover", displaylogo = FALSE)
+```
+
+#### 
+
+# Next Project Steps
+
+We plan to conduct further analysis:
+
+-Compare model variants using information criteria (AIC/BIC) and diagnostic plots. 
+
+-Consider additional predictors available in NHANES (e.g., activity, alcohol, comorbidity measures). 
+
+-Report uncertainty (confidence intervals) for key effects and validate predictions on a holdout split.
+
+
+
+
+# GitHub
+
+The code and datasets for this project can be viewed at our GitHub repository here: <https://https://github.com/manasvisaite1504/Count_data_health_Industry-project>
+
+
+
+# References
+
+NHANES data package (R).
+
+VGAM cumulative logit modelling.
+
