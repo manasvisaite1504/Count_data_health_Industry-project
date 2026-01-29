@@ -1,311 +1,336 @@
 ---
-title: "Count Data On Health Industry"
+title: Statistical Modelling Using Regression Models
 author:
-  - name: "Manasvi Saite & Kaushal Mayur"
+  - name: Manasvi Saite
+  - name: Kaushal Mayur
+    affil: 1
 affiliation:
-    address: "MSc Health Data Science, University of Galway"
+  - num: 1
+    address: School of Mathematical and Statistical Sciences, University of Galway
 logoleft_name: "/Users/manasvi15/Downloads/Project/UOG_logo.png"
 
-# A1 Landscape
 poster_height: "594mm"
 poster_width: "841mm"
-
-# Layout
 column_numbers: 4
-column_margins: "0.5in"
-
-# Colours
-primary_colour: "#a80050"
-secondary_colour: "#84003d"
-accent_colour: "#e6007e"
-
-# Text sizes
+column_margins: "0.5in"	
+primary_colour:	"#a80050"	# Secondary colour use for poster design.
+secondary_colour:	"#84003d"	# Main colour used for poster design.
+accent_colour:	"#e6007e"	# A third colour option.
 author_textcol: "white"
-title_textsize: "90pt"
-author_textsize: "60pt"
-body_textsize: "25pt"
-
-output:
+title_textsize: "80pt"
+author_textsize: "50pt"
+body_textsize: "20pt"
+output: 
   posterdown::posterdown_html:
     self_contained: true
     pandoc_args: --mathjax
     number_sections: false
-
-# Optional: creates PDF via Chrome when you Knit (comment out if you only want HTML)
 knit: pagedown::chrome_print
 ---
 
 ```{css, echo=FALSE}
-div.logo_left{ width: 20%; }
-div.poster_title{ width: 100%; }
+div.logo_left{
+  width: 20%;
+}
+div.poster_title{
+  width: 80%;
+}
+a, .section, p {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 .section h4 { break-after: column; }
 div.footnotes { font-size: 18pt; }
+/* Add space between table and next plot */
+div.chunk { margin-bottom: 20px; }
+table { margin-bottom: 25px !important; }
+
 ```
 
-<!--
-This is the GENERAL POSTER TEMPLATE.
-Step 1: Knit to HTML to see the poster layout.
-Step 2: Replace the placeholder text with your project content.
-Step 3: Add your tables/figures in the chunks below.
--->
+<!-- Don't change anything above, except the title and author names, unless you know what you are doing. -->
 
 ```{r, include=FALSE}
 knitr::opts_chunk$set(
   echo = FALSE, warning = FALSE, message = FALSE,
   fig.align = "center", out.width = "100%"
 )
+
 options(knitr.table.format = "html")
 
 library(tidyverse)
 library(kableExtra)
-library(plotly)   # optional (for interactive plots in HTML)
-# library(readxl) # if your dataset is Excel
+library(scales)
+library(VGAM)
+library(NHANES)
+library(plotly)
 ```
 
-# Background and Objective
+# Background and Problem
 
-Healthcare systems routinely generate count data, such as the number of hospital admissions.
-This project focuses on analysing hospitalisation counts based on disease type, sex, and other patient-related factors.
+Healthcare analytics often requires models suited to non‑standard outcomes (e.g., counts or ordered categories), where standard linear regression is inappropriate.  
+In this poster we study **self‑reported general health** (HealthGen) from NHANES, recorded on an ordered scale from "Excellent" to "Poor", and use an ordinal regression framework to quantify how age, BMI, sex and smoking shift health ratings.
 
-Hospitalisation data consist of non-negative integers and frequently display overdispersion and a high number of zero admissions, where many individuals experience no hospitalisations during the study period. These characteristics make standard regression methods unsuitable.
-
-To address this, count data models provide an appropriate statistical framework for modelling hospital admissions and understanding patterns of healthcare utilisation.
-
-Objectives of Project
-
-To analyse hospitalisation counts across different disease groups.
-
-To examine the effect of sex and other patient characteristics on hospitalisation rates.
-
-To apply suitable count data models for analysing hospital admission data.
+## Objectives of Project
+- Fit a proportional‑odds (cumulative logit) model for HealthGen.  
+- Analyze health string data (GENHLTH: Excellent > Very good > Good > Fair > Poor) using suitable ordinal regression (proportional odds logit).
+- Represent with suitable diagrams: Interactive predicted probabilities vs age + smoking effect.  
+- Compare predicted health profiles for current smokers vs non‑smokers.
 
 # Data Sources and Datasets
 
-Dataset: Hospital Readmissions 30k
 
-Source: Simulated inpatient hospital records for 3,000 adult patients from kaggle.com
+**NHANES Overview**: Nationally representative survey of ~10,000 US residents annually. Combines interviews, physical exams, and lab tests from civilian noninstitutionalized population. [web:297]
 
-Sample size: 3,000 patients (one row per patient).
+**Dataset**: NHANES 2013-2014 (R package `NHANES`). ~9,700 participants.
 
-Key variables:
+**HealthGen (Outcome)**: Self-reported general health rating (ages ≥12). 5 ordered categories:
+- **Excellent** (best) → **Very good** → **Good** → **Fair** → **Poor** (worst)
+- Typical US distribution: 15% Excellent, 41% Very good, 49% Good, 16% Fair, 4% Poor
 
-1.patient_id: Unique identifier for each patient record.
+**Key Predictors** (supervisor-specified model):
+- **Age**: Years (continuous, adults only)
+- **Gender**: Male/Female
+- **BMI**: kg/m² (body mass index from measured height/weight)
+- **SmokeNow**: Current smoker (Yes/No)
 
-2.age: Age in years at the time of admission.
 
-3. gender: Recorded sex/gender (Male, Female, Other).
-
-4. blood_pressure: Admission blood pressure in systolic/diastolic format (e.g. 130/72).
-
-5. cholesterol: Total cholesterol level (numeric, mg/dL or comparable units).
-
-6. bmi: Body mass index, continuous measure of weight relative to height.
-
-7. diabetes: Indicator of diagnosed diabetes (Yes/No).
-
-8. hypertension: Indicator of diagnosed hypertension (Yes/No).
-
-9. medication_count: Number of concurrent medications at discharge.
-
-10. length_of_stay: Length of index hospital stay in days.
-
-11. discharge_destination: Discharge location (Home, Nursing_Facility, Rehab).
-
-12 .readmitted_30_days: Binary outcome indicating whether the patient was readmitted to hospital within 30 days of discharge (Yes/No).
-
+<!-- This #### below causes the columns to break -->
 ```{r data_load, include=FALSE}
-library(readr)
-library(dplyr)
-library(scales)
-library(kableExtra)
+library(NHANES)
+data(NHANES)
+nhanes_raw <- NHANES::NHANES
+nhanes_model <- nhanes_raw %>%
+  mutate(
+    GENHLTH = ordered(HealthGen, levels = c("Excellent","Very good","Good","Fair","Poor")),
+    Gender  = factor(Gender),
+    SmokeNow = factor(SmokeNow, levels = c("No","Yes"))
+  ) %>%
+  filter(complete.cases(GENHLTH, Age, Gender, BMI, SmokeNow)) %>%
+  mutate(GENHLTH = droplevels(GENHLTH))
 
-hospital <- read_csv("hospital_readmissions_30k.csv")
+fit <- VGAM::vglm(
+  GENHLTH ~ Age + Gender + BMI + SmokeNow,
+  family = VGAM::cumulative(link = "logitlink", parallel = TRUE),
+  data = nhanes_model
+)
+
+Mode <- function(x) {
+  ux <- na.omit(unique(x))
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+health_colors <- c(
+  "Excellent"="red3","Very good"="green4","Good"="cyan3","Fair"="green3","Poor"="purple3"
+)
+
 ```
+<!-- You can change where you put these breaks, and the "column_numbers: 4" argument in the YAMLS header to change the layout of the poster, with care! -->
 
-####
+
+#### 
 
 # Early Results / Descriptive Statistics of Datasets
 
-## Table 1: Descriptive summary:
+The modelling dataset includes **`r format(nrow(nhanes_model), big.mark=",")`** complete cases with mean age
+**`r sprintf("%d±%d", round(mean(nhanes_model$Age)), round(sd(nhanes_model$Age)))`** years and mean BMI
+**`r sprintf("%.1f±%.1f", mean(nhanes_model$BMI), sd(nhanes_model$BMI))`** kg/m².
 
-The hospital_readmissions_30k dataset contains **30,000 adult inpatients** aged 18–90+ years (**mean 54±21 years**) spanning a broad clinical spectrum. Lipid and weight profiles show average **cholesterol 225±44 mg/dL** and **BMI 28.9±6.3** (overweight), with comorbidities prevalent (**49% diabetes, 49% hypertension**). Both conditions associate with elevated **30-day readmission risk (12.2% cohort rate)**. Hospital course and blood pressure (110–160/70–100 mmHg) show median **length of stay 5 days (IQR 5)**, **5 medications (IQR 6)**. Discharge destinations favor home (75%), followed by nursing facilities (15%) and rehab (10%); readmission rates double from facilities vs home (20% vs 10%). Medication burden correlates with readmission risk.
+Current smoking prevalence is **`r scales::percent(mean(nhanes_model$SmokeNow=="Yes"), accuracy=0.1)`**
+and females comprise **`r scales::percent(mean(nhanes_model$Gender=="female"), accuracy=0.1)`** of the analytic sample.
 
 
+**Some basic summaries of the dataset are below:**
+Proportional Odds Model
+Cumulative logit regression for ordered GENHLTH (Excellent > ... > Poor). Coefficients >0 shift predicted category upward (better health). Proportional odds assumption applied.
+
+**Fit Statistics**
+AIC=4078, residual deviance=4062 indicate good model fit. Intercepts define cumulative probability thresholds between categories.
+
+**Interpretation Note**
+Model uses Age, Gender(male), BMI, SmokeNow(Yes). All predictors significant (t>2.4). Place above your coef/intercept tables
+
+```{r coef-table, echo=FALSE, results='asis'}
+coefs <- data.frame(
+  Predictor = c("Age", "Gender (male)", "BMI", "SmokeNow (Yes)"),
+  Value = c(0.01386, 0.21875, 0.06075, 0.79466),
+  `Std. Error` = c(0.002822, 0.090388, 0.006748, 0.096978),
+  `t value` = c(4.910, 2.420, 9.003, 8.194)
+)
+
+knitr::kable(coefs, digits = 5, caption = "Coefficients") %>%
+  kable_styling(font_size = 22, full_width = TRUE, bootstrap_options = "striped") %>%
+  row_spec(0, bold = TRUE, background = "#a80050", color = "white")
+```
 
 
+```{r intercepts-table, echo=FALSE, results='asis'}
+intercepts <- data.frame(
+  Threshold = c("Excellent|Very good", "Very good|Good", "Good|Fair", "Fair|Poor"),
+  Value = c(0.7235, 0.7235, 3.9200, 6.0726),
+  `Std. Error` = c(0.2693, 0.2693, 0.2846, 0.3062),
+  `t value` = c(2.6867, 2.6868, 13.7718, 19.8292)
+)
+
+knitr::kable(intercepts, digits = 4, caption = "Intercepts") %>%
+  kable_styling(font_size = 22, full_width = TRUE, bootstrap_options = "striped") %>%
+  row_spec(0, bold = TRUE, background = "#a80050", color = "white")
+```
 
 
-```{r table1, out.width='95%', fig.cap=""}
-summary_vals <- hospital %>%
-  summarise(
-    n = n(),
-    age_mean = mean(age, na.rm = TRUE), age_sd = sd(age, na.rm = TRUE),
-    bmi_mean = mean(bmi, na.rm = TRUE), bmi_sd = sd(bmi, na.rm = TRUE),
-    chol_mean = mean(cholesterol, na.rm = TRUE), chol_sd = sd(cholesterol, na.rm = TRUE),
-    los_median = median(length_of_stay, na.rm = TRUE), los_iqr = IQR(length_of_stay, na.rm = TRUE),
-    meds_median = median(medication_count, na.rm = TRUE), meds_iqr = IQR(medication_count, na.rm = TRUE),
-    readmit_rate = mean(readmitted_30_days == "Yes", na.rm = TRUE),
-    diabetes_yes = mean(diabetes == "Yes", na.rm = TRUE),
-    hypertension_yes = mean(hypertension == "Yes", na.rm = TRUE)
-  )
+```{r fit-stats-table, echo=FALSE, results='asis'}
+stats <- data.frame(
+  Metric = c("Residual Deviance", "AIC"),
+  Value = c(4062.469, 4078.469)
+)
 
-tab1 <- tibble::tibble(
-  Measure = c("N patients", "Age, mean (SD)", "BMI, mean (SD)", "Cholesterol, mean (SD)",
-              "LOS, median (IQR)", "Meds, median (IQR)", 
-              "Readmitted ≤30 days", "Diabetes (%)", "Hypertension (%)"),
+knitr::kable(stats, digits = 3, caption = "Model Fit Statistics") %>%
+  kable_styling(font_size = 22, full_width = TRUE, bootstrap_options = "striped") %>%
+  row_spec(0, bold = TRUE, background = "#a80050", color = "white")
+```
+
+```{r mytable, out.width='85%', fig.show='hold', tab.cap="Table of Nhanes data", tab.height = 6}
+tab1 <- tibble(
+  Measure = c("N participants", "Age (mean ± SD)", "BMI (mean ± SD)", "Current smokers (%)", "Females (%)"),
   Value = c(
-    format(summary_vals$n, big.mark = ","),
-    sprintf("%.0f (%.0f)", summary_vals$age_mean, summary_vals$age_sd),
-    sprintf("%.1f (%.1f)", summary_vals$bmi_mean, summary_vals$bmi_sd),
-    sprintf("%.0f (%.0f)", summary_vals$chol_mean, summary_vals$chol_sd),
-    sprintf("%d (IQR %.0f)", summary_vals$los_median, summary_vals$los_iqr),
-    sprintf("%d (IQR %.0f)", summary_vals$meds_median, summary_vals$meds_iqr),
-    scales::percent(summary_vals$readmit_rate, accuracy = 0.1),
-    scales::percent(summary_vals$diabetes_yes, accuracy = 0.1),
-    scales::percent(summary_vals$hypertension_yes, accuracy = 0.1)
+    format(nrow(nhanes_model), big.mark = ","),
+    sprintf("%d ± %d", round(mean(nhanes_model$Age)), round(sd(nhanes_model$Age))),
+    sprintf("%.1f ± %.1f", mean(nhanes_model$BMI), sd(nhanes_model$BMI)),
+    scales::percent(mean(nhanes_model$SmokeNow == "Yes"), accuracy = 0.1),
+    scales::percent(mean(nhanes_model$Gender == "female"), accuracy = 0.1)
   )
 )
 
-knitr::kable(tab1, col.names = c("Measure", "Value"), 
-             caption = " Baseline characteristics of 3,000 hospitalized patients.") %>%
-  kable_styling(font_size = 20, full_width = FALSE)
+knitr::kable(tab1, col.names = c("Measure", "Value")) %>%
+  kable_styling(font_size = 22, full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = "#a80050", color = "white")
 
 ```
 
 
 
+```{r figure-1, out.width='92%', fig.height=5, fig.cap='Predicted health probabilities by age (typical covariates).'}
+levs <- levels(nhanes_model$GENHLTH)
+col_pal <- health_colors[levs]
 
-
-
-## Figure 1: (Thirty‑day hospital readmission rate by diabetes status.)
-
-```{r fig1, out.width='85%', fig.cap='30-day readmission rate by diabetes status.', fig.height=5}
-library(dplyr)
-library(ggplot2)
-
-fig1_data <- hospital %>%
-  group_by(diabetes) %>%
+newdat <- nhanes_model %>%
   summarise(
-    n = n(),
-    readmit_rate = mean(readmitted_30_days == "Yes", na.rm = TRUE)
-  )
-
-ggplot(fig1_data, aes(x = diabetes, y = readmit_rate)) +
-  geom_col(fill = "#a80050") +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 5)) +
-  labs(
-    x = "Diabetes status",
-    y = "30-day readmission rate",
-    title = ""
-  ) +
-  theme_minimal(base_size = 22) +
-  theme(
-    axis.title.x = element_text(margin = margin(t = 10)),
-    axis.title.y = element_text(margin = margin(r = 10))
-  )
-
-```
-
-
-
-## Figure 2: (Age distribution (histogram)
-
-```{r fig2, out.width = "98%", fig.height = 7}
-library(ggplot2)
-
-ggplot(hospital, aes(x = age, fill = gender)) +
-  geom_histogram(bins = 30, color = "white", alpha = 0.85, position = "stack") +
-  scale_fill_manual(
-    values = c(Female = "lightpink", Male = "lightblue", Other = "darkslategray3"),
-    name = NULL
-  ) +
-  labs(
-    title    = "Age Distribution of 30,000\nHospitalized Patients",
-    subtitle = "Stacked bars = totals per age bin; segments = gender counts",
-    x = "Age (years)",
-    y = "Number of patients"
-  ) +
-  scale_x_continuous(breaks = seq(0, 100, 20), expand = c(0.01, 0)) +
-  theme_minimal(base_size = 20) +
-  theme(
-    plot.title    = element_text(hjust = 0.5, size = 18, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5, size = 13),
-    legend.position = "bottom",
-    legend.text = element_text(size = 12),
-    panel.grid.minor = element_blank()
-  )
-
-
-```
-
-
-
-
-
-## Figure 3: Interactive Age Distribution
-
-
-```{r fig2-legend-bottom, echo=FALSE, warning=FALSE, message=FALSE, fig.width=12, fig.height=7}
-library(ggplot2)
-library(plotly)
-library(dplyr)
-
-hospital_clean <- hospital %>%
-  filter(!is.na(age), age >= 0, age <= 100)
-
-p <- ggplot(hospital_clean, aes(x = age, fill = gender)) +
-  geom_histogram(bins = 30, color = "white", alpha = 0.9, position = "stack") +
-  scale_fill_manual(
-    values = c(Female = "lightpink", Male = "lightblue", Other = "darkslategray3"),
-    name = NULL   # removes "gender" in ggplot legend
-  ) +
-  labs(
-    title = "Figure 2: Age Distribution by Gender",
-    x = "Age (years)",
-    y = "Patients",
-    fill = NULL   # also removes legend title
-  ) +
-  guides(fill = guide_legend(title = NULL, nrow = 1)) +
-  scale_x_continuous(breaks = seq(0, 100, 20)) +
-  theme_minimal(base_size = 16) +
-  theme(
-    plot.title = element_text(hjust = 0.5, face = "bold"),
-    legend.position = "bottom",
-    legend.direction = "horizontal"
-  )
-
-ggplotly(p, tooltip = c("fill", "x", "y")) %>%
-  layout(
-    height = 600,
-    margin = list(t = 120, b = 170, l = 80, r = 40),
-    legend = list(
-      orientation = "h",
-      title = list(text = ""),     # removes "gender" in plotly legend
-      x = 0.5, xanchor = "center",
-      y = -0.25, yanchor = "top"
-    )
+    Gender = Mode(Gender),
+    BMI = mean(BMI, na.rm = TRUE),
+    SmokeNow = Mode(SmokeNow)
   ) %>%
-  config(displayModeBar = TRUE, displaylogo = FALSE)
+  tidyr::crossing(Age = seq(18, 80, length.out = 100))
+
+probs <- as.data.frame(predict(fit, newdat, type = "response"), check.names = FALSE)
+
+
+levs_use <- levs[seq_len(min(length(levs), ncol(probs)))]
+names(probs) <- levs_use
+
+pred <- dplyr::bind_cols(newdat, probs) %>%
+  tidyr::pivot_longer(cols = all_of(levs_use), names_to = "Health", values_to = "Probability") %>%
+  mutate(Health = factor(Health, levels = levs_use))
+
+ggplot(pred, aes(x = Age, y = Probability, colour = Health)) +
+  geom_line(size = 2.2) +
+  scale_colour_manual(values = col_pal[levs_use]) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_x_continuous(breaks = seq(20, 80, 20)) +
+  labs(x = "Age", y = "Probability", colour = "Health Category",
+       title = "Predicted Probability") +
+  theme_minimal(base_size = 22) +
+  theme(legend.position = "top", legend.title = element_blank(),
+        plot.title = element_text(hjust = 0.5, face = "bold"))
 
 
 ```
 
-####
+
+
+
+
+```{r age-interactive, echo=FALSE, warning=FALSE, message=FALSE, out.width='95%', fig.height=5, fig.cap="Interactive: Predicted HealthGen probabilities by age"}
+library(NHANES); library(MASS); library(plotly); library(tidyverse)
+
+
+data(NHANES)
+nhanesmodel <- NHANES %>%
+  mutate(GENHLTH = ordered(HealthGen, levels=c("Excellent","Very good","Good","Fair","Poor")),
+         Gender = factor(Gender), SmokeNow = factor(SmokeNow, levels=c("No","Yes"))) %>%
+  filter(complete.cases(GENHLTH, Age, Gender, BMI, SmokeNow))
+
+Mode <- function(x) { ux <- na.omit(unique(x)); ux[which.max(tabulate(match(x, ux)))] }
+healthcolors <- c("Excellent" = "red3", "Very good" = "green4", "Good" = "cyan3", 
+                  "Fair" = "green3", "Poor" = "purple3")
+
+fit_temp <- polr(GENHLTH ~ Age + Gender + BMI + SmokeNow, data=nhanesmodel, Hess=TRUE)
+
+
+levs <- levels(nhanesmodel$GENHLTH)
+newdat <- data.frame(
+  Age = seq(18, 80, length.out=100),
+  Gender = Mode(nhanesmodel$Gender),
+  BMI = mean(nhanesmodel$BMI, na.rm=TRUE),
+  SmokeNow = Mode(nhanesmodel$SmokeNow)
+)
+probs <- predict(fit_temp, newdat, type="probs")
+levsuse <- levs[1:min(length(levs), ncol(probs))]
+colnames(probs) <- levsuse
+pred <- newdat %>%
+  mutate(row_id = row_number()) %>%
+  bind_cols(probs) %>%
+  pivot_longer(all_of(levsuse), names_to="Health", values_to="Probability") %>%
+  mutate(Health = factor(Health, levels=levsuse))
+
+
+p_age <- ggplot(pred, aes(x=Age, y=Probability, color=Health, group=Health,
+                          text=paste0("Age: ", round(Age), "<br>",
+                                      "Gender: ", Gender, "<br>SmokeNow: ", SmokeNow, "<br>",
+                                      "BMI: ", round(BMI,1), "<br>Health: ", Health, "<br>",
+                                      "Prob: ", scales::percent(Probability, 0.1)))) +
+  geom_line(size=2.2) +
+  scale_color_manual(values=healthcolors[levsuse]) +
+  scale_y_continuous(labels=scales::percent_format(accuracy=1)) +
+  scale_x_continuous(breaks=seq(20,80,20)) +
+  labs(x="Age (years)", y="Predicted Probability", color="Health Category", 
+       title="Smoking effect") +
+  theme_minimal(base_size=22) + 
+  theme(legend.position="top", legend.title=element_blank(),
+        plot.title=element_text(hjust=0.5, face="bold"))
+
+ggplotly(p_age, tooltip="text") %>% config(displayModeBar=TRUE, displaylogo=FALSE)
+```
+
+
+#### 
 
 # Next Project Steps
 
-- Next step 1 (e.g., data cleaning / feature engineering)
-- Next step 2 (e.g., modelling: logistic regression / survival / ML)
-- Next step 3 (e.g., validation / sensitivity analysis)
+We plan to conduct further analyse:
+
+
+- Compare model variants (parallel vs non-parallel) using AIC/BIC + diagnostic plots.
+- Test alternative ordinal models: adjacent-categories logit , continuation-ratio.
+- Add NHANES predictors: activity, alcohol, comorbidities.
+- Report 95% CIs for effects + holdout validation (train/test split)
+
+
+
 
 # GitHub
 
-(Optional) Add your repository link:  
-<https://https://github.com/manasvisaite1504/Count_data_health_Industry-project>
+The code and datasets for this project can be viewed at our GitHub repository here: <https://https://github.com/manasvisaite1504/Count_data_health_Industry-project>
+
+
 
 # References
 
-Add references as footnotes like this:  
-Example: This method is widely used in healthcare analytics.[^2]
+1. **Data & Analysis Packages**  
+-NHANES (2013-2014 data)  
+-MASS (polr: proportional odds regression)  
+-VGAM (vglm: cumulative logit models)  
+-tidyverse (data wrangling + ggplot2)  
+-plotly (interactive plots)  
+-kableExtra (formatted tables)  
 
-[^2]: Author, Title, Journal, Year.
+2. Fullerton, A. S. (2009). Ordered Regression Models: Parallel, Partial, and Non-Parallel Alternatives. Chapman and Hall/CRC.
+
