@@ -1,0 +1,199 @@
+---
+title: "Regession Modelling"
+output: html_document
+author: "Manasvi Saite"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(MASS)
+library(VGAM)
+```
+
+## Load Data
+
+```{r pressure, echo=FALSE}
+load("brfss2013.RData")
+```
+
+## Prepare data
+
+```{r}
+df <- brfss2013 %>%
+  mutate(
+    genhlth = ifelse(genhlth %in% c(7, 9), NA, genhlth),
+    sex = ifelse(sex %in% c(7, 9), NA, sex),
+    X_age80 = ifelse(X_age80 %in% c(777, 999), NA, X_age80),
+    X_bmi5 = ifelse(X_bmi5 %in% c(9999), NA, X_bmi5),
+    X_smoker3 = ifelse(X_smoker3 %in% c(7, 9), NA, X_smoker3)
+  ) %>%
+  mutate(
+    Health = ordered(
+      genhlth,
+      levels = c(1, 2, 3, 4, 5),
+      labels = c("Excellent", "Very good", "Good", "Fair", "Poor")
+    ),
+    Age = as.numeric(X_age80),
+    Gender = factor(sex, levels = c(1, 2), labels = c("Male", "Female")),
+    BMI = as.numeric(X_bmi5) / 100,
+    Smoking = factor(
+      X_smoker3,
+      levels = c(1, 2, 3, 4),
+      labels = c("Every day", "Some days", "Former smoker", "Never smoked")
+    )
+  ) %>%
+  dplyr::select(Health, Age, Gender, BMI, Smoking) %>%
+  na.omit() %>%
+  droplevels()
+```
+
+
+
+```{r}
+table(df$Health)
+table(df$Gender)
+table(df$Smoking)
+summary(df$Age)
+summary(df$BMI)
+```
+
+
+
+
+## Parallel Model
+
+```{r}
+parallel_model <- MASS::polr(
+  Health ~ Age + Gender + BMI + Smoking,
+  data = df,
+  Hess = TRUE
+)
+
+summary(parallel_model)
+```
+
+
+## Create prediction data
+
+```{r}
+newdata <- data.frame(
+  Age = seq(min(df$Age), max(df$Age), length.out = 100),
+  Gender = factor(rep("Male", 100), levels = levels(df$Gender)),
+  BMI = rep(mean(df$BMI), 100),
+  Smoking = factor(rep("Never smoked", 100), levels = levels(df$Smoking))
+)
+```
+
+
+
+## Predicted probabilities for parallel model
+
+```{r}
+pred_parallel <- predict(parallel_model, newdata = newdata, type = "probs")
+
+plot_parallel <- cbind(newdata, as.data.frame(pred_parallel)) %>%
+  pivot_longer(
+    cols = c("Excellent", "Very good", "Good", "Fair", "Poor"),
+    names_to = "Health",
+    values_to = "Probability"
+  )
+```
+
+## Plot for parallel model
+
+```{r}
+ggplot(plot_parallel, aes(x = Age, y = Probability, color = Health)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Parallel Model: Predicted Probabilities by Age",
+    x = "Age",
+    y = "Predicted Probability"
+  ) +
+  theme_minimal() 
+```
+
+## Non-Parallel Model
+
+```{r}
+nonparallel_model <- VGAM::vglm(
+  Health ~ Age + Gender + BMI + Smoking,
+  family = VGAM::cumulative(link = "logitlink", parallel = FALSE),
+  data = df
+)
+
+summary(nonparallel_model)
+```
+
+
+
+## Predicted probabilities for non-parallel model
+```{r}
+pred_nonparallel <- predict(nonparallel_model, newdata = newdata, type = "response")
+
+plot_nonparallel <- cbind(newdata, as.data.frame(pred_nonparallel)) %>%
+  pivot_longer(
+    cols = c("Excellent", "Very good", "Good", "Fair", "Poor"),
+    names_to = "Health",
+    values_to = "Probability"
+  )
+```
+
+
+## Plot for non-parallel model
+
+```{r}
+ggplot(plot_nonparallel, aes(x = Age, y = Probability, color = Health)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Non-Parallel Model: Predicted Probabilities by Age",
+    x = "Age",
+    y = "Predicted Probability"
+  ) +
+  theme_minimal()
+```
+
+## combine both into one comparison plot
+
+```{r}
+plot_parallel$Model <- "Parallel"
+plot_nonparallel$Model <- "Non-parallel"
+
+plot_both <- bind_rows(plot_parallel, plot_nonparallel)
+
+ggplot(plot_both, aes(x = Age, y = Probability, color = Health)) +
+  geom_line(linewidth = 1) +
+  facet_wrap(~Model) +
+  labs(
+    title = "Parallel vs Non-Parallel Model",
+    x = "Age",
+    y = "Predicted Probability"
+  ) +
+  theme_minimal()
+```
+
+
+## Compare models
+
+```{r}
+AIC(parallel_model)
+AIC(nonparallel_model)
+
+BIC(parallel_model)
+BIC(nonparallel_model)
+```
+
+
+
+
+
+
+
+
+
+
+
