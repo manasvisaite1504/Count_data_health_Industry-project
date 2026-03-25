@@ -1,0 +1,141 @@
+---
+title: "Untitled"
+output: html_document
+date: "2026-03-23"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(caret)
+library(randomForest)
+library(pROC)
+
+```
+
+## Load Data & Data Cleaning
+```{r pressure, echo=FALSE}
+
+diabetes <- read.csv("diabetic_data.csv", stringsAsFactors = FALSE)
+
+str(diabetes)
+dim(diabetes)
+summary(diabetes)
+
+table(diabetes$readmitted)
+
+diabetes[diabetes == "?"] <- NA
+
+diabetes$readmit30 <- ifelse(diabetes$readmitted == "<30", 1, 0)
+
+diabetes$readmit30 <- factor(diabetes$readmit30, levels = c(0,1), labels = c("No", "Yes"))
+
+table(diabetes$readmit30)
+
+diabetes <- diabetes %>%
+  select(-encounter_id, -patient_nbr, -readmitted)
+
+missing_summary <- sapply(diabetes, function(x) sum(is.na(x)))
+sort(missing_summary, decreasing = TRUE)
+```
+
+
+## Then choose predictors and make a smaller working dataset:
+
+```{r}
+model_data <- diabetes %>%
+  select(readmit30, race, gender, age, admission_type_id,
+         discharge_disposition_id, admission_source_id,
+         time_in_hospital, num_lab_procedures, num_procedures,
+         num_medications, number_outpatient, number_emergency,
+         number_inpatient, number_diagnoses, max_glu_serum,
+         A1Cresult, insulin, change, diabetesMed)
+
+str(model_data)
+summary(model_data)
+```
+```{r}
+model_data_clean <- na.omit(model_data)
+dim(model_data_clean)
+```
+
+## Remove missing values for first simple model
+
+```{r}
+model_data_clean <- na.omit(model_data)
+dim(model_data_clean)
+```
+
+## Train-test split
+```{r}
+set.seed(123)
+
+train_index <- createDataPartition(model_data_clean$readmit30, p = 0.7, list = FALSE)
+train_data <- model_data_clean[train_index, ]
+test_data  <- model_data_clean[-train_index, ]
+
+dim(train_data)
+dim(test_data)
+```
+
+## Logistic regression
+
+```{r}
+log_model <- glm(readmit30 ~ ., data = train_data, family = binomial)
+
+summary(log_model)
+```
+
+
+
+### Prediction:
+
+```{r}
+log_probs <- predict(log_model, newdata = test_data, type = "response")
+log_pred <- ifelse(log_probs > 0.5, "Yes", "No")
+log_pred <- factor(log_pred, levels = c("No", "Yes"))
+
+confusionMatrix(log_pred, test_data$readmit30)
+```
+
+### ROC-AUC:
+
+```{r}
+log_roc <- roc(test_data$readmit30, log_probs)
+auc(log_roc)
+plot(log_roc)
+```
+
+## Random forest
+
+```{r}
+set.seed(123)
+
+rf_model <- randomForest(readmit30 ~ ., data = train_data, ntree = 100)
+
+print(rf_model)
+varImpPlot(rf_model)
+```
+
+
+
+### Prediction:
+
+```{r}
+rf_pred_prob <- predict(rf_model, newdata = test_data, type = "prob")[,2]
+rf_pred <- predict(rf_model, newdata = test_data, type = "response")
+
+confusionMatrix(rf_pred, test_data$readmit30)
+
+rf_roc <- roc(test_data$readmit30, rf_pred_prob)
+auc(rf_roc)
+plot(rf_roc)
+```
+
+
+
+
+
