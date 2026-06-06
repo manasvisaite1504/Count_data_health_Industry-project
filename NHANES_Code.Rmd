@@ -1,0 +1,306 @@
+---
+title: "NHANES Ordinal Regression"
+author: "Manasvi Saite"
+affiliation: "University of Galway"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(VGAM)
+library(knitr)
+library(NHANES)
+```
+
+## Data Preparation
+
+```{r}
+data(NHANES)
+
+df <- NHANES %>%
+  mutate(
+    HealthNum = case_when(
+      HealthGen == "Excellent" ~ 1,
+      HealthGen == "Vgood" ~ 2,
+      HealthGen == "Good" ~ 3,
+      HealthGen == "Fair" ~ 4,
+      HealthGen == "Poor" ~ 5,
+      TRUE ~ NA_real_
+    ),
+    Health = ordered(HealthNum, levels = c(1, 2, 3, 4, 5)),
+    Age = as.numeric(Age),
+    Gender = factor(Gender),
+    BMI = as.numeric(BMI),
+    Smoking = factor(SmokeNow)
+  ) %>%
+  dplyr::select(Health, Age, Gender, BMI, Smoking) %>%
+  na.omit() %>%
+  droplevels()
+
+summary(df)
+```
+
+## Exploratory Data Analysis
+
+```{r}
+missing_summary <- data.frame(
+  Variable = names(df),
+  Missing_Count = sapply(df, function(x) sum(is.na(x))),
+  Missing_Percent = round(sapply(df, function(x) mean(is.na(x)) * 100), 2)
+)
+
+kable(missing_summary)
+```
+
+```{r}
+kable(as.data.frame(table(df$Health)), col.names = c("Health", "Count"))
+```
+
+```{r}
+kable(as.data.frame(table(df$Gender)), col.names = c("Gender", "Count"))
+```
+
+```{r}
+kable(as.data.frame(table(df$Smoking)), col.names = c("Smoking", "Count"))
+```
+
+```{r}
+summary(df$Age)
+```
+
+```{r}
+summary(df$BMI)
+```
+
+```{r}
+ggplot(df, aes(x = Health)) +
+  geom_bar() +
+  labs(
+    title = "Distribution of Self-Reported Health",
+    x = "Health Category",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+ggplot(df, aes(x = Gender)) +
+  geom_bar() +
+  labs(
+    title = "Distribution of Gender",
+    x = "Gender",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+ggplot(df, aes(x = Smoking)) +
+  geom_bar() +
+  labs(
+    title = "Distribution of Smoking Status",
+    x = "Smoking Status",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+ggplot(df, aes(x = Age)) +
+  geom_histogram(bins = 30) +
+  labs(
+    title = "Age Distribution",
+    x = "Age",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+ggplot(df, aes(x = BMI)) +
+  geom_histogram(bins = 30) +
+  labs(
+    title = "BMI Distribution",
+    x = "BMI",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+ggplot(df, aes(x = Health, y = Age)) +
+  geom_boxplot() +
+  labs(
+    title = "Age by Self-Reported Health",
+    x = "Health Category",
+    y = "Age"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+ggplot(df, aes(x = Health, y = BMI)) +
+  geom_boxplot() +
+  labs(
+    title = "BMI by Self-Reported Health",
+    x = "Health Category",
+    y = "BMI"
+  ) +
+  theme_minimal()
+```
+
+## Prediction Data for Parallel Model
+
+```{r}
+newdata_parallel <- data.frame(
+  Age = seq(min(df$Age), max(df$Age), length.out = 100),
+  Gender = factor(rep(levels(df$Gender)[1], 100), levels = levels(df$Gender)),
+  BMI = rep(mean(df$BMI, na.rm = TRUE), 100),
+  Smoking = factor(rep(levels(df$Smoking)[1], 100), levels = levels(df$Smoking))
+)
+
+head(newdata_parallel)
+```
+
+
+## Parallel Cumulative Logit Model
+
+```{r}
+parallel_model <- vglm(
+  Health ~ Age + Gender + BMI + Smoking,
+  family = cumulative(link = "logitlink", parallel = TRUE),
+  data = df,
+  model = TRUE
+)
+
+summary(parallel_model)
+```
+
+
+## Plot for Parallel Model
+
+```{r}
+pred_parallel <- predict(parallel_model, newdata = newdata_parallel, type = "response")
+
+plot_parallel <- cbind(newdata_parallel, as.data.frame(pred_parallel)) %>%
+  `colnames<-`(c("Age", "Gender", "BMI", "Smoking", "1", "2", "3", "4", "5")) %>%
+  pivot_longer(
+    cols = c("1", "2", "3", "4", "5"),
+    names_to = "Health",
+    values_to = "Probability"
+  ) %>%
+  mutate(
+    Health = factor(
+      Health,
+      levels = c("1", "2", "3", "4", "5"),
+      labels = c("Excellent", "Very good", "Good", "Fair", "Poor")
+    ),
+    Model = "Parallel"
+  )
+
+ggplot(plot_parallel, aes(x = Age, y = Probability, color = Health)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Parallel Cumulative Logit Model",
+    x = "Age",
+    y = "Predicted Probability"
+  ) +
+  theme_minimal()
+```
+
+
+
+
+## Non-Parallel Cumulative Logit Model
+
+```{r}
+nonparallel_model <- vglm(
+  Health ~ Age + BMI+ Gender+ Smoking,
+  family = cumulative(link = "logitlink", parallel = FALSE),
+  data = df,
+  model = TRUE
+)
+
+nonparallel_model
+```
+
+## Prediction Data for Non-Parallel Model
+
+```{r}
+newdata_nonparallel <- data.frame(
+  Age = seq(min(df$Age), max(df$Age), length.out = 100),
+  BMI = rep(mean(df$BMI, na.rm = TRUE), 100),
+  Gender = factor(rep(levels(df$Gender)[1], 100), levels = levels(df$Gender)),
+  Smoking = factor(rep(levels(df$Smoking)[1], 100), levels = levels(df$Smoking))
+)
+
+pred_nonparallel <- predictvglm(
+  nonparallel_model,
+  newdata = newdata_nonparallel,
+  type = "response"
+)
+
+pred_nonparallel <- as.data.frame(pred_nonparallel)
+colnames(pred_nonparallel) <- c("1", "2", "3", "4", "5")
+```
+
+
+## Plot for Non-Parallel Model
+
+```{r}
+plot_nonparallel <- cbind(newdata_nonparallel, as.data.frame(pred_nonparallel)) %>%
+  `colnames<-`(c("Age", "BMI","Gender", "Smoking", "1", "2", "3", "4", "5")) %>%
+  pivot_longer(
+    cols = c("1", "2", "3", "4", "5"),
+    names_to = "Health",
+    values_to = "Probability"
+  ) %>%
+  mutate(
+    Health = factor(
+      Health,
+      levels = c("1", "2", "3", "4", "5"),
+      labels = c("Excellent", "Very good", "Good", "Fair", "Poor")
+    ),
+    Model = "Non-parallel"
+  )
+
+ggplot(plot_nonparallel, aes(x = Age, y = Probability, color = Health)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Non-Parallel Cumulative Logit Model",
+    x = "Age",
+    y = "Predicted Probability"
+  ) +
+  theme_minimal()
+```
+
+
+## Model Comparison
+
+```{r}
+AIC(parallel_model)
+AIC(nonparallel_model)
+
+BIC(parallel_model)
+BIC(nonparallel_model)
+```
+
+
+
+
+## Combined Plot
+
+```{r}
+plot_both <- bind_rows(plot_parallel, plot_nonparallel)
+
+ggplot(plot_both, aes(x = Age, y = Probability, color = Health)) +
+  geom_line(linewidth = 1) +
+  facet_wrap(~Model) +
+  labs(
+    title = "Parallel vs Non-Parallel Cumulative Logit Models",
+    x = "Age",
+    y = "Predicted Probability"
+  ) +
+  theme_minimal()
+```
