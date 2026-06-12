@@ -1,0 +1,2023 @@
+\documentclass{article}
+
+\usepackage{arxiv}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{lmodern}        % https://github.com/rstudio/rticles/issues/343
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{graphicx}
+
+\title{Cumulative Logit Ordinal Regression for Self-Reported Health in
+NHANES}
+
+\author{
+  }
+
+
+% tightlist command for lists without linebreak
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+% From pandoc table feature
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+
+% Pandoc citation processing
+%From Pandoc 3.1.8
+% definitions for citeproc citations
+\NewDocumentCommand\citeproctext{}{}
+\NewDocumentCommand\citeproc{mm}{%
+  \begingroup\def\citeproctext{#2}\cite{#1}\endgroup}
+\makeatletter
+ % allow citations to break across lines
+ \let\@cite@ofmt\@firstofone
+ % avoid brackets around text for \cite:
+ \def\@biblabel#1{}
+ \def\@cite#1#2{{#1\if@tempswa , #2\fi}}
+\makeatother
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{1.5em}
+\newlength{\csllabelwidth}
+\setlength{\csllabelwidth}{3em}
+\newenvironment{CSLReferences}[2] % #1 hanging-indent, #2 entry-spacing
+ {\begin{list}{}{%
+  \setlength{\itemindent}{0pt}
+  \setlength{\leftmargin}{0pt}
+  \setlength{\parsep}{0pt}
+  % turn on hanging indent if param 1 is 1
+  \ifodd #1
+   \setlength{\leftmargin}{\cslhangindent}
+   \setlength{\itemindent}{-1\cslhangindent}
+  \fi
+  % set entry spacing
+  \setlength{\itemsep}{#2\baselineskip}}}
+ {\end{list}}
+\usepackage{calc}
+\newcommand{\CSLBlock}[1]{#1\hfill\break}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{#1}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{#1}\break}
+\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
+
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{placeins}
+\usepackage{float}
+\providecommand{\pandocbounded}[1]{#1}
+\begin{document}
+\maketitle
+
+
+\begin{abstract}
+
+\end{abstract}
+
+
+Self-reported health is an important measure in public health research
+because it shows how people describe their own general health. It is
+usually recorded in ordered categories such as Excellent, Very good,
+Good, Fair and Poor. Since these categories have a natural order, the
+response should be analysed using a method that respects this ordering.
+
+This project uses cumulative logit ordinal regression to analyse
+self-reported general health using data from the National Health and
+Nutrition Examination Survey (NHANES). The analysis uses NHANES survey
+cycles 2009--2012 and studies the association of age, body mass index
+(BMI), gender and current smoking status with self-reported health. The
+final modelling dataset contains complete cases for all selected
+variables.
+
+Both parallel and non-parallel cumulative logit models are fitted. The
+parallel model assumes that the effect of each predictor is the same
+across all cumulative thresholds. The non-parallel model allows
+predictor effects to vary across thresholds. The parallel model produced
+stable and interpretable results, including residual deviance,
+log-likelihood, AIC and BIC. The non-parallel model produced a slightly
+lower residual deviance, but the reduction was only 1.068 compared with
+the parallel model. This was very small compared with a deviance value
+above 7400.
+
+The results suggest that cumulative logit ordinal regression is suitable
+for analysing ordered self-reported health outcomes. The parallel
+cumulative logit model was selected as the main model because it was
+simpler, more stable and easier to interpret. The non-parallel model was
+retained as a sensitivity check to show that relaxing the proportional
+odds assumption did not produce a meaningful improvement in model fit.
+
+\section*{Introduction}\label{introduction}
+\addcontentsline{toc}{section}{Introduction}
+
+Self-reported health is a common measure used in public health and
+health survey research. It is normally collected by asking people to
+describe their general health using categories such as Excellent, Very
+good, Good, Fair and Poor. Although the measure is subjective, it is
+useful because it reflects how people judge their own health condition.
+This judgement may be influenced by physical health, lifestyle,
+long-term illness, mental wellbeing and social factors.
+
+The main aim of this project is to analyse self-reported general health
+using data from the National Health and Nutrition Examination Survey
+(NHANES). The analysis focuses on selected demographic and
+health-related predictors: age, body mass index (BMI), gender and
+current smoking status. The response variable is self-reported health,
+and the aim is to understand how the selected predictors are associated
+with the ordered health categories.
+
+The research question for this project is:
+
+\textbf{How are age, BMI, gender and current smoking status associated
+with ordered self-reported general health in the NHANES data?}
+
+The response variable is ordered, so ordinal regression is suitable for
+this research question. Excellent is the highest health category and
+Poor is the lowest health category. For example, one cannot assume that
+the difference between Excellent and Very good is the same as the
+difference between Fair and Poor. Therefore, the outcome should not be
+treated as a continuous numerical variable. This follows the general
+idea of ordered regression models, where the response has ranked
+categories and the modelling approach should preserve that order
+(McCullagh 1980; Agresti 2010; Fullerton and Xu 2016; Course Material
+2026a).
+
+This project uses cumulative logit ordinal regression. Two versions of
+the model are fitted: the parallel model and the non-parallel model. The
+parallel model assumes that the predictor effects are the same across
+cumulative thresholds. The non-parallel model allows the predictor
+effects to differ across thresholds. The two models are compared using
+model output, residual deviance, fit statistics where available,
+predicted probabilities and interpretability.
+
+The report is organised as follows. First, ordinal data and
+self-reported health are described. Next, the NHANES dataset and
+selected variables are introduced. Exploratory data analysis is then
+used to study the outcome and predictors. The methodology section
+explains cumulative logit ordinal regression, the parallel model and the
+non-parallel model. The results section presents fitted model outputs,
+odds ratios, p-values, predicted probabilities and an example prediction
+for a particular person. Finally, the report discusses the model choice,
+limitations and possible future work.
+
+\section*{Ordinal Data}\label{ordinal-data}
+\addcontentsline{toc}{section}{Ordinal Data}
+
+Ordinal data are categorical data with a meaningful order. In this
+project, the outcome variable is self-reported general health. The
+categories are:
+
+\textbf{Excellent, Very good, Good, Fair and Poor.}
+
+These categories clearly have a hierarchy. Excellent represents the best
+health category and Poor represents the worst health category. The
+category order is important, but the response is still categorical. This
+is the main reason why ordinary linear regression is not suitable for
+the outcome variable.
+
+A simple way to understand ordinal data is to think of the categories as
+labels with order. Numbers such as 1 to 5 can be used to label the
+categories, but these numbers are not the same as regular measurements.
+If Excellent is coded as 1 and Poor is coded as 5, it does not mean that
+Poor is five times worse than Excellent. The numbers show ranking, not
+exact measurement.
+
+Ordinal regression is more suitable because it keeps the order of the
+categories without treating the response as continuous. This allows the
+analysis to use the information that Excellent is better than Very good,
+Very good is better than Good, and so on. Cumulative logit ordinal
+regression is a widely used method for ordered categorical outcomes
+(McCullagh 1980; Agresti 2010).
+
+In this project, ordinal regression is used to model the relationship
+between self-reported health and four predictors: age, BMI, gender and
+current smoking status. The model helps explain whether these predictors
+are associated with better or poorer self-reported health.
+
+\section*{NHANES Dataset}\label{nhanes-dataset}
+\addcontentsline{toc}{section}{NHANES Dataset}
+
+NHANES is the National Health and Nutrition Examination Survey. It is a
+health survey of people in the United States conducted by the National
+Center for Health Statistics, which is part of the Centers for Disease
+Control and Prevention. NHANES collects information using questionnaire
+responses, physical examination measurements and health-related
+variables (Centers for Disease Control and Prevention, National Center
+for Health Statistics 2024a).
+
+The analysis uses the NHANES data available through the R package
+\texttt{NHANES} (Pruim 2016). The data used in this project are from
+survey cycles 2009--2012. These data include the variables needed for
+the analysis: self-reported general health, age, BMI, gender and current
+smoking status.
+
+The dependent variable is self-reported general health. In the dataset,
+this is recorded as ordered categories. The categories used in this
+analysis are Excellent, Very good, Good, Fair and Poor. The predictors
+used in the model are:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Age}: numerical predictor.
+\item
+  \textbf{BMI}: numerical predictor representing body mass index.
+\item
+  \textbf{Gender}: categorical predictor.
+\item
+  \textbf{Smoking}: categorical Yes/No variable showing current smoking
+  status.
+\end{itemize}
+
+The data preparation code is shown below. The code creates the ordered
+health outcome, converts the predictors into the correct formats,
+selects the variables used in the model, removes incomplete cases and
+drops unused factor levels.
+
+\begin{verbatim}
+##        Health          Age           Gender          BMI        Smoking   
+##  Excellent: 213   Min.   :20.00   female:1236   Min.   :15.02   No :1581  
+##  Very good: 849   1st Qu.:35.00   male  :1649   1st Qu.:24.03   Yes:1304  
+##  Good     :1228   Median :49.00                 Median :27.70             
+##  Fair     : 496   Mean   :49.25                 Mean   :28.56             
+##  Poor     :  99   3rd Qu.:62.00                 3rd Qu.:32.00             
+##                   Max.   :80.00                 Max.   :67.83
+\end{verbatim}
+
+After selecting the required variables and keeping complete cases, the
+modelling dataset contained participants aged 20 to 80 years. This age
+range was observed in the selected modelling dataset; it was not added
+as a separate manual restriction in the analysis. The model therefore
+examines how age is associated with self-reported health across the
+available age range in the data.
+
+Table 1 describes how the variables were used in the analysis.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1154}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1282}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2564}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.5000}}@{}}
+\caption{Variables used in the ordinal regression
+analysis.}\tabularnewline
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Variable
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Role
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Type
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Coding\_or\_description
+\end{minipage} \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Variable
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Role
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Type
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Coding\_or\_description
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Health & Outcome & Ordered categorical & Excellent, Very good, Good,
+Fair, Poor \\
+Age & Predictor & Numeric & Age in years \\
+BMI & Predictor & Numeric & Body mass index \\
+Gender & Predictor & Categorical & Female or male \\
+Smoking & Predictor & Categorical & Current smoking status: No or Yes \\
+\end{longtable}
+
+Table 1 shows that the outcome variable is ordered categorical, while
+the predictors include both numerical and categorical variables. This
+mix of variables is appropriate for cumulative logit ordinal regression.
+
+Missing values were checked for the selected variables before fitting
+the models. This step was included as a data quality check, even though
+no major missing-data cleaning was required in the final modelling
+dataset. Table 2 presents the missing-value summary for the selected
+variables.
+
+\begin{longtable}[]{@{}llrr@{}}
+\caption{Missing-value summary for selected modelling
+variables.}\tabularnewline
+\toprule\noalign{}
+& Variable & Missing\_Count & Missing\_Percent \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+& Variable & Missing\_Count & Missing\_Percent \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Health & Health & 0 & 0 \\
+Age & Age & 0 & 0 \\
+Gender & Gender & 0 & 0 \\
+BMI & BMI & 0 & 0 \\
+Smoking & Smoking & 0 & 0 \\
+\end{longtable}
+
+As shown in Table 2, the selected variables Health, Age, Gender, BMI and
+Smoking had zero missing values in the final modelling dataset. This
+confirms that the models were fitted using complete cases for all
+variables included in the analysis.
+
+Table 3 summarises the final modelling dataset. It shows the number of
+complete cases, the observed age range, the mean age, the mean BMI and
+the number of outcome categories.
+
+\begin{longtable}[]{@{}ll@{}}
+\caption{Summary of the final modelling dataset.}\tabularnewline
+\toprule\noalign{}
+Item & Value \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Item & Value \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Complete cases & 2885 \\
+Age range & 20 - 80 \\
+Mean age & 49.25 \\
+Mean BMI & 28.56 \\
+Outcome categories & 5 \\
+\end{longtable}
+
+Table 3 shows that the final dataset contains 2,885 complete cases. The
+average age is approximately 49.25 years and the average BMI is
+approximately 28.56 kg/m\(^2\). These values provide a basic description
+of the sample before fitting the ordinal regression models.
+
+\section*{Exploratory Data Analysis}\label{exploratory-data-analysis}
+\addcontentsline{toc}{section}{Exploratory Data Analysis}
+
+Before fitting the ordinal regression models, exploratory data analysis
+was carried out to understand the structure of the data. This step
+helped examine the distribution of the outcome variable, the
+distribution of the selected predictors, and the visible patterns
+between predictors and self-reported health. The graphs were created
+using the \texttt{ggplot2} package in R (Wickham 2016).
+
+\subsection*{Frequency tables for categorical
+variables}\label{frequency-tables-for-categorical-variables}
+\addcontentsline{toc}{subsection}{Frequency tables for categorical
+variables}
+
+Table 4 shows the frequency of each self-reported health category. This
+table is important because ordinal regression models can be affected by
+very small categories.
+
+\begin{longtable}[]{@{}lr@{}}
+\caption{Frequency of self-reported health categories.}\tabularnewline
+\toprule\noalign{}
+Health category & Count \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Health category & Count \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Excellent & 213 \\
+Very good & 849 \\
+Good & 1228 \\
+Fair & 496 \\
+Poor & 99 \\
+\end{longtable}
+
+As shown in Table 4, most participants reported their health as Good or
+Very good, while fewer participants reported Poor health. This pattern
+is important because the Poor category has fewer observations than the
+middle categories.
+
+Table 5 shows the gender distribution in the modelling dataset.
+
+\begin{longtable}[]{@{}lr@{}}
+\caption{Frequency of gender categories.}\tabularnewline
+\toprule\noalign{}
+Gender & Count \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Gender & Count \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+female & 1236 \\
+male & 1649 \\
+\end{longtable}
+
+Table 5 confirms that both female and male participants are represented
+in the modelling dataset. Gender is therefore included as a categorical
+predictor in the model.
+
+Table 6 shows the distribution of current smoking status.
+
+\begin{longtable}[]{@{}lr@{}}
+\caption{Frequency of current smoking status.}\tabularnewline
+\toprule\noalign{}
+Current smoking & Count \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Current smoking & Count \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+No & 1581 \\
+Yes & 1304 \\
+\end{longtable}
+
+As shown in Table 6, there are more non-smokers than current smokers.
+This is useful to know because the smoking coefficient in the model
+compares current smokers with non-smokers while holding other predictors
+constant.
+
+\subsection*{Graphical exploration}\label{graphical-exploration}
+\addcontentsline{toc}{subsection}{Graphical exploration}
+
+Figure 1 shows the distribution of self-reported health. This figure
+provides a visual version of Table 3.
+
+\begin{figure}[H]
+\includegraphics[width=0.85\linewidth]{Thesis_files/figure-latex/health-distribution-1} \caption{Distribution of self-reported health categories.}\label{fig:health-distribution}
+\end{figure}
+
+Figure 1 shows that most participants are in the Good and Very good
+categories. The smaller number of Poor cases is important because very
+small categories can make flexible models harder to estimate reliably.
+
+Figure 2 shows the gender distribution in the modelling dataset.
+
+\begin{figure}[H]
+\includegraphics[width=0.85\linewidth]{Thesis_files/figure-latex/gender-distribution-1} \caption{Distribution of gender in the modelling dataset.}\label{fig:gender-distribution}
+\end{figure}
+
+Figure 2 shows that both gender categories are present in the data. This
+supports the use of gender as a categorical predictor in the ordinal
+regression model.
+
+Figure 3 shows the distribution of current smoking status.
+
+\begin{figure}[H]
+\includegraphics[width=0.85\linewidth]{Thesis_files/figure-latex/smoking-distribution-1} \caption{Distribution of smoking status.}\label{fig:smoking-distribution}
+\end{figure}
+
+Figure 3 shows that non-smokers are more common than current smokers.
+The model uses this variable to estimate whether current smoking is
+associated with poorer self-reported health after adjusting for age, BMI
+and gender.
+
+Figure 4 shows the age distribution available in the selected modelling
+dataset.
+
+\begin{figure}[H]
+\includegraphics[width=0.85\linewidth]{Thesis_files/figure-latex/age-distribution-1} \caption{Age distribution of participants in the modelling dataset.}\label{fig:age-distribution}
+\end{figure}
+
+Figure 4 shows the observed age range in the modelling dataset. Age was
+included as a numerical predictor because one of the aims of the project
+was to understand how self-reported health is associated with age. Age
+was also used later in the predicted probability plots.
+
+Figure 5 shows the BMI distribution.
+
+\begin{figure}[H]
+\includegraphics[width=0.85\linewidth]{Thesis_files/figure-latex/bmi-distribution-1} \caption{BMI distribution of participants in the modelling dataset.}\label{fig:bmi-distribution}
+\end{figure}
+
+Figure 5 shows that most BMI values are around the mid-to-high 20s, with
+some higher values. BMI was included as a continuous predictor because
+it is a common health-related measure and may be associated with
+self-reported health.
+
+Figure 6 compares age across the five self-reported health categories.
+
+\begin{figure}[H]
+\includegraphics[width=0.85\linewidth]{Thesis_files/figure-latex/age-by-health-1} \caption{Age by self-reported health category.}\label{fig:age-by-health}
+\end{figure}
+
+Figure 6 suggests that older participants are more common in poorer
+health categories. This gives a visual reason for including age in the
+model.
+
+Figure 7 compares BMI across the five self-reported health categories.
+
+\begin{figure}[H]
+\includegraphics[width=0.85\linewidth]{Thesis_files/figure-latex/bmi-by-health-1} \caption{BMI by self-reported health category.}\label{fig:bmi-by-health}
+\end{figure}
+
+Figure 7 shows that BMI tends to be higher in the poorer self-reported
+health categories. This supports the inclusion of BMI as a predictor in
+the ordinal regression model.
+
+Overall, the exploratory analysis shows that the outcome is ordered and
+that the selected predictors have visible relationships with
+self-reported health. This supports the decision to use cumulative logit
+ordinal regression.
+
+\FloatBarrier
+
+\section*{Cumulative Logit Ordinal
+Regression}\label{cumulative-logit-ordinal-regression}
+\addcontentsline{toc}{section}{Cumulative Logit Ordinal Regression}
+
+Ordered regression models are used when the response variable has
+categories with a natural ranking. The literature describes several
+approaches for ordered outcomes, including cumulative models, stage
+models and adjacent category models (Fullerton and Xu 2016; Course
+Material 2026a). In this project, the cumulative logit model was chosen
+because the aim was to model the ordered self-reported health outcome
+while keeping the interpretation clear and suitable for the project
+question.
+
+Cumulative logit ordinal regression is used when the outcome variable
+has ordered categories. In this project, the outcome is self-reported
+health, ordered from Excellent to Poor. Since the response is
+categorical and ordered, cumulative logit ordinal regression is more
+suitable than ordinary linear regression.
+
+The main idea of the model is to use cumulative probabilities. Instead
+of modelling only one health category at a time, the model considers the
+probability of being at or below a particular health threshold. For
+example, it can compare the probability of being in Excellent health
+versus all other categories, then Excellent or Very good versus the
+remaining categories, and so on.
+
+For five ordered health categories, there are four cumulative
+thresholds. These thresholds split the ordered response into cumulative
+comparisons. In this project, the comparisons can be understood as
+moving across the health scale from the best category towards the
+poorest category. This is helpful because the model uses the full
+ordering of the response instead of ignoring the order or treating the
+categories as ordinary numbers.
+
+For an ordered response variable \(Y\), the cumulative logit model can
+be written as:
+
+\[
+\log \left(\frac{P(Y \leq j)}{P(Y > j)}\right) = \alpha_j + \beta X
+\]
+
+where \(Y\) is the ordered self-reported health outcome, \(j\)
+represents a health category threshold, \(\alpha_j\) is the
+threshold-specific intercept, \(X\) represents the predictors and
+\(\beta\) represents the predictor effect.
+
+In this project, the predictors are age, BMI, gender and current smoking
+status. The model estimates how these predictors are associated with the
+cumulative odds of reporting better or poorer self-reported health. The
+cumulative logit model is commonly used for ordinal response variables
+and can be fitted under a proportional odds, or parallel slopes,
+assumption (McCullagh 1980; Agresti 2010).
+
+The coefficients from the model are estimated on the log-odds scale.
+Log-odds are useful for modelling, but they are not easy to explain
+directly. Therefore, the coefficients are converted into odds ratios by
+exponentiating them:
+
+\[
+\mathrm{Odds\ Ratio} = \exp(\beta)
+\]
+
+An odds ratio helps explain the direction and strength of the
+relationship between a predictor and the outcome. If the odds ratio is
+greater than 1, the odds increase. If the odds ratio is less than 1, the
+odds decrease. In this project, because of the ordering and coding
+direction of the outcome, odds ratios below 1 indicate lower cumulative
+odds of being in better self-reported health categories.
+
+For example, if the odds ratio for current smoking is below 1, it means
+that current smokers have lower odds of reporting better health compared
+with non-smokers, after adjusting for age, BMI and gender. This does not
+mean the probability directly decreases by the same percentage. It means
+the odds are lower on the odds scale.
+
+The cumulative logit models in this project were fitted using the
+\texttt{VGAM} package and the \texttt{vglm()} function in R (Yee 2010,
+2015, 2024). Two model forms were fitted: the parallel model and the
+non-parallel model. These two models are discussed in the next section.
+
+\section*{Parallel and Non-Parallel
+Models}\label{parallel-and-non-parallel-models}
+\addcontentsline{toc}{section}{Parallel and Non-Parallel Models}
+
+The cumulative logit ordinal regression model can be fitted in two main
+forms: the parallel model and the non-parallel model. Both models are
+designed for ordered categorical outcome variables, but they differ in
+the assumptions they make about the predictor effects.
+
+In this project, the ordered outcome variable is self-reported health.
+The categories are Excellent, Very good, Good, Fair and Poor. The
+predictors are age, BMI, gender and current smoking status. Since the
+outcome has a natural order, cumulative logit ordinal regression is
+appropriate. However, it is still necessary to decide whether the
+predictor effects should be assumed to be the same across all cumulative
+thresholds or whether they should be allowed to vary.
+
+The parallel model assumes that each predictor has the same effect
+across all cumulative thresholds. This assumption is also known as the
+proportional odds assumption. Under this assumption, the model estimates
+one coefficient for each predictor. This means that age has one
+estimated effect, BMI has one estimated effect, gender has one estimated
+effect and smoking has one estimated effect across the ordered health
+outcome.
+
+For example, the effect of BMI is assumed to be consistent across the
+cumulative thresholds. This makes the model easier to interpret because
+each predictor has only one overall odds ratio. The parallel model is
+therefore useful when the goal is to obtain a clear summary of the
+relationship between predictors and the ordered health outcome.
+
+The parallel cumulative logit model was fitted in R using the
+\texttt{vglm()} function from the \texttt{VGAM} package. The model
+specification is shown below.
+
+The argument \texttt{parallel\ =\ TRUE} tells R to fit the proportional
+odds version of the cumulative logit model. This means the same slope
+coefficient is used across the cumulative logits.
+
+The non-parallel model relaxes the proportional odds assumption. Instead
+of forcing the effect of each predictor to be the same across all
+thresholds, the non-parallel model allows the effect of a predictor to
+differ from one threshold to another. This makes the model more
+flexible.
+
+The non-parallel model was fitted using the same variables as the
+parallel model, but with \texttt{parallel\ =\ FALSE}.
+
+The argument \texttt{parallel\ =\ FALSE} allows separate coefficients to
+be estimated for each cumulative threshold. This increases model
+flexibility, but it also increases model complexity. The output becomes
+longer because each predictor can have multiple threshold-specific
+coefficients.
+
+Both models were included because they provide different information.
+The parallel model gives a simpler and more interpretable summary of
+predictor effects. The non-parallel model is useful as a sensitivity
+check because it examines whether allowing threshold-specific effects
+gives a noticeably better model.
+
+A more flexible model is not always the best model. A model may have a
+slightly better fit but may also be harder to explain, less stable or
+less useful for interpretation. Therefore, the final model choice in
+this project considered both statistical fit and practical
+interpretation.
+
+\section*{Fitted Model Results}\label{fitted-model-results}
+\addcontentsline{toc}{section}{Fitted Model Results}
+
+This section presents the fitted model outputs. The focus is on
+coefficient estimates, odds ratios, p-values, residual deviance and
+predicted probabilities. The aim is not only to report the model output,
+but also to explain what the values mean in the context of self-reported
+health.
+
+\subsection*{Parallel model output}\label{parallel-model-output}
+\addcontentsline{toc}{subsection}{Parallel model output}
+
+The parallel model summary is shown using the code below. This output
+includes threshold estimates and predictor estimates.
+
+\begin{verbatim}
+## 
+## Call:
+## vglm(formula = Health ~ Age + BMI + Gender + Smoking, family = cumulative(link = "logitlink", 
+##     parallel = TRUE), data = df, model = TRUE)
+## 
+## Coefficients: 
+##                Estimate Std. Error z value Pr(>|z|)    
+## (Intercept):1  0.473418   0.211848   2.235   0.0254 *  
+## (Intercept):2  2.561695   0.210660  12.160  < 2e-16 ***
+## (Intercept):3  4.590259   0.223261  20.560  < 2e-16 ***
+## (Intercept):4  6.648358   0.247107  26.905  < 2e-16 ***
+## Age           -0.011812   0.002196  -5.379  7.5e-08 ***
+## BMI           -0.073276   0.005620 -13.038  < 2e-16 ***
+## Gendermale    -0.153296   0.069597  -2.203   0.0276 *  
+## SmokingYes    -0.839791   0.075197 -11.168  < 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Names of linear predictors: logitlink(P[Y<=1]), logitlink(P[Y<=2]), 
+## logitlink(P[Y<=3]), logitlink(P[Y<=4])
+## 
+## Residual deviance: 7418.731 on 11532 degrees of freedom
+## 
+## Log-likelihood: -3709.366 on 11532 degrees of freedom
+## 
+## Number of Fisher scoring iterations: 4 
+## 
+## 
+## Exponentiated coefficients:
+##        Age        BMI Gendermale SmokingYes 
+##  0.9882572  0.9293442  0.8578759  0.4318007
+\end{verbatim}
+
+The main predictor coefficients from the parallel model were extracted
+and converted into odds ratios. P-values were also included to identify
+which predictors showed statistical evidence of association with
+self-reported health.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1028}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1402}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0841}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0935}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0841}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1028}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1121}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1121}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1682}}@{}}
+\caption{Parallel model coefficients, odds ratios, confidence intervals
+and p-values.}\tabularnewline
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Predictor
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Estimate
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Std\_Error
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+z\_value
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Odds\_Ratio
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Lower\_95\_CI
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Upper\_95\_CI
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+p\_value\_formatted
+\end{minipage} \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Predictor
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Estimate
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Std\_Error
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+z\_value
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Odds\_Ratio
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Lower\_95\_CI
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Upper\_95\_CI
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+p\_value\_formatted
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Age & Age & -0.0118 & 0.0022 & -5.3789 & 0.9883 & 0.9840 & 0.9925 &
+\textless0.001 \\
+BMI & BMI & -0.0733 & 0.0056 & -13.0384 & 0.9293 & 0.9192 & 0.9396 &
+\textless0.001 \\
+Gendermale & Male & -0.1533 & 0.0696 & -2.2026 & 0.8579 & 0.7485 &
+0.9833 & 0.028 \\
+SmokingYes & Current smoker & -0.8398 & 0.0752 & -11.1678 & 0.4318 &
+0.3726 & 0.5004 & \textless0.001 \\
+\end{longtable}
+
+Table 7 shows the main predictor results from the parallel cumulative
+logit model. The Estimate column gives the coefficient on the log-odds
+scale. The Odds Ratio column gives the exponentiated coefficient, which
+is easier to interpret. The p-value column shows whether there is
+statistical evidence that the predictor is associated with self-reported
+health after adjusting for the other predictors.
+
+The age estimate is negative, meaning that increasing age is associated
+with lower cumulative odds of better self-reported health. The odds
+ratio for age is slightly below 1. This means that each one-year
+increase in age is associated with a small decrease in the odds of
+better self-reported health, holding BMI, gender and smoking status
+constant.
+
+The BMI estimate is also negative. The odds ratio for BMI is below 1,
+meaning that higher BMI is associated with lower odds of better
+self-reported health, after adjusting for the other variables. This
+matches the exploratory analysis, where BMI tended to be higher among
+poorer health categories.
+
+The male coefficient compares males with the reference gender category.
+The odds ratio below 1 suggests that males have lower cumulative odds of
+better self-reported health compared with the reference category, after
+adjusting for age, BMI and smoking.
+
+The smoking coefficient is the strongest effect in the parallel model.
+The odds ratio for current smoking is clearly below 1. This means
+current smokers have lower odds of better self-reported health compared
+with non-smokers, after adjusting for age, BMI and gender. This is one
+of the most important findings of the model.
+
+The hypothesis testing interpretation follows the usual rule: if the
+p-value is below 0.05, there is statistical evidence that the predictor
+is associated with self-reported health. In this model, age, BMI and
+smoking show statistical evidence of association, while gender is weaker
+compared with the other predictors. This matches the manual
+interpretation notes used during the project work (Project Calculation
+Notes 2026).
+
+The fit statistics for the parallel model are shown in Table 7.
+
+\begin{longtable}[]{@{}lr@{}}
+\caption{Parallel model fit statistics.}\tabularnewline
+\toprule\noalign{}
+Measure & Value \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Measure & Value \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Residual deviance & 7418.732 \\
+Log-likelihood & -3709.366 \\
+AIC & 7434.732 \\
+BIC & 7482.470 \\
+\end{longtable}
+
+Table 8 shows the residual deviance, log-likelihood, AIC and BIC for the
+parallel model. These values are used to describe overall model fit. The
+AIC and BIC are useful because they consider both fit and model
+complexity. Lower values are generally preferred when comparing models
+fitted to the same data, although interpretation and stability must also
+be considered.
+
+\subsection*{Non-parallel model output}\label{non-parallel-model-output}
+\addcontentsline{toc}{subsection}{Non-parallel model output}
+
+The non-parallel model summary is shown below. This model gives separate
+threshold-specific coefficients.
+
+\begin{verbatim}
+## 
+## Call:
+## vglm(formula = Health ~ Age + BMI + Gender + Smoking, family = cumulative(link = "logitlink", 
+##     parallel = FALSE), data = df, model = TRUE)
+## 
+## Coefficients: 
+##                Estimate Std. Error z value Pr(>|z|)    
+## (Intercept):1  0.388767   0.412019   0.944 0.345391    
+## (Intercept):2  2.364726   0.246273   9.602  < 2e-16 ***
+## (Intercept):3  4.279083   0.293258  14.592  < 2e-16 ***
+## (Intercept):4  7.478113   0.482363  15.503  < 2e-16 ***
+## Age:1         -0.006790   0.004191  -1.620 0.105196    
+## Age:2         -0.009686   0.002495  -3.882 0.000104 ***
+## Age:3         -0.014748   0.002994  -4.926 8.40e-07 ***
+## Age:4         -0.022341   0.005643  -3.959 7.52e-05 ***
+## BMI:1         -0.075454   0.013147  -5.739 9.51e-09 ***
+## BMI:2         -0.069742   0.006935 -10.057  < 2e-16 ***
+## BMI:3         -0.060686   0.006863  -8.843  < 2e-16 ***
+## BMI:4         -0.102471   0.008057 -12.718  < 2e-16 ***
+## Gendermale:1  -0.110064   0.137152  -0.802 0.422266    
+## Gendermale:2  -0.128388   0.079680  -1.611 0.107118    
+## Gendermale:3  -0.195104   0.093889  -2.078 0.037707 *  
+## Gendermale:4   0.210609   0.182205   1.156 0.247725    
+## SmokingYes:1  -0.809197   0.152429  -5.309 1.10e-07 ***
+## SmokingYes:2  -0.802619   0.086122  -9.320  < 2e-16 ***
+## SmokingYes:3  -0.796958   0.100329  -7.943 1.97e-15 ***
+## SmokingYes:4  -0.518359   0.196133  -2.643 0.008220 ** 
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Names of linear predictors: logitlink(P[Y<=1]), logitlink(P[Y<=2]), 
+## logitlink(P[Y<=3]), logitlink(P[Y<=4])
+## 
+## Residual deviance: 7417.663 on 11520 degrees of freedom
+## 
+## Log-likelihood: NA on 11520 degrees of freedom
+## 
+## Number of Fisher scoring iterations: 2 
+## 
+## 
+## Exponentiated coefficients:
+##        Age:1        Age:2        Age:3        Age:4        BMI:1        BMI:2 
+##    0.9932332    0.9903608    0.9853601    0.9779071    0.9273222    0.9326348 
+##        BMI:3        BMI:4 Gendermale:1 Gendermale:2 Gendermale:3 Gendermale:4 
+##    0.9411189    0.9026040    0.8957767    0.8795123    0.8227495    1.2344299 
+## SmokingYes:1 SmokingYes:2 SmokingYes:3 SmokingYes:4 
+##    0.4452156    0.4481537    0.4506980    0.5954972
+\end{verbatim}
+
+The non-parallel coefficient table is longer because each predictor has
+coefficients for different cumulative thresholds.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1647}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1647}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1059}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1176}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1059}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1294}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.2118}}@{}}
+\caption{Non-parallel model coefficient output.}\tabularnewline
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Term
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Estimate
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Std\_Error
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+z\_value
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Odds\_Ratio
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+p\_value\_formatted
+\end{minipage} \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Term
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Estimate
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Std\_Error
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+z\_value
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Odds\_Ratio
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+p\_value\_formatted
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+(Intercept):1 & (Intercept):1 & 0.3888 & 0.4120 & 0.9436 & 1.4752 &
+0.345 \\
+(Intercept):2 & (Intercept):2 & 2.3647 & 0.2463 & 9.6021 & 10.6411 &
+\textless0.001 \\
+(Intercept):3 & (Intercept):3 & 4.2791 & 0.2933 & 14.5916 & 72.1742 &
+\textless0.001 \\
+(Intercept):4 & (Intercept):4 & 7.4781 & 0.4824 & 15.5031 & 1768.9005 &
+\textless0.001 \\
+Age:1 & Age:1 & -0.0068 & 0.0042 & -1.6202 & 0.9932 & 0.105 \\
+Age:2 & Age:2 & -0.0097 & 0.0025 & -3.8819 & 0.9904 & \textless0.001 \\
+Age:3 & Age:3 & -0.0147 & 0.0030 & -4.9258 & 0.9854 & \textless0.001 \\
+Age:4 & Age:4 & -0.0223 & 0.0056 & -3.9593 & 0.9779 & \textless0.001 \\
+BMI:1 & BMI:1 & -0.0755 & 0.0131 & -5.7393 & 0.9273 & \textless0.001 \\
+BMI:2 & BMI:2 & -0.0697 & 0.0069 & -10.0572 & 0.9326 & \textless0.001 \\
+BMI:3 & BMI:3 & -0.0607 & 0.0069 & -8.8427 & 0.9411 & \textless0.001 \\
+BMI:4 & BMI:4 & -0.1025 & 0.0081 & -12.7178 & 0.9026 & \textless0.001 \\
+Gendermale:1 & Gendermale:1 & -0.1101 & 0.1372 & -0.8025 & 0.8958 &
+0.422 \\
+Gendermale:2 & Gendermale:2 & -0.1284 & 0.0797 & -1.6113 & 0.8795 &
+0.107 \\
+Gendermale:3 & Gendermale:3 & -0.1951 & 0.0939 & -2.0780 & 0.8227 &
+0.038 \\
+Gendermale:4 & Gendermale:4 & 0.2106 & 0.1822 & 1.1559 & 1.2344 &
+0.248 \\
+SmokingYes:1 & SmokingYes:1 & -0.8092 & 0.1524 & -5.3087 & 0.4452 &
+\textless0.001 \\
+SmokingYes:2 & SmokingYes:2 & -0.8026 & 0.0861 & -9.3196 & 0.4482 &
+\textless0.001 \\
+SmokingYes:3 & SmokingYes:3 & -0.7970 & 0.1003 & -7.9434 & 0.4507 &
+\textless0.001 \\
+SmokingYes:4 & SmokingYes:4 & -0.5184 & 0.1961 & -2.6429 & 0.5955 &
+0.008 \\
+\end{longtable}
+
+Table 9 shows the non-parallel model output. Unlike the parallel model,
+the non-parallel model provides threshold-specific effects. This means
+that age, BMI, gender and smoking can have different estimated effects
+at different cut-points of the outcome.
+
+The advantage of the non-parallel model is flexibility. It can capture
+situations where a predictor has a stronger effect at one part of the
+health scale than another. For example, smoking may affect the
+probability of being in the best health categories differently from the
+probability of being in the poorest health category.
+
+The disadvantage is that the output is harder to explain. Instead of one
+odds ratio for each predictor, there are several odds ratios for each
+predictor. This makes the model less simple and less suitable as the
+main interpretation model, unless the improvement in fit is clearly
+meaningful.
+
+\subsection*{Model deviance comparison}\label{model-deviance-comparison}
+\addcontentsline{toc}{subsection}{Model deviance comparison}
+
+Residual deviance was used to compare the parallel and non-parallel
+models. A lower residual deviance indicates better fit, but the size of
+the improvement must be considered. In likelihood-based modelling,
+deviance compares the fitted model with a saturated model, and values
+closer to zero indicate better fit relative to the best possible model
+(Course Material 2026b; Agresti 2015).
+
+\begin{longtable}[]{@{}lr@{}}
+\caption{Residual deviance comparison between the parallel and
+non-parallel models.}\tabularnewline
+\toprule\noalign{}
+Model & Residual\_Deviance \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Model & Residual\_Deviance \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Parallel model & 7418.732 \\
+Non-parallel model & 7417.663 \\
+Difference & 1.069 \\
+\end{longtable}
+
+Table 10 shows that the non-parallel model has a slightly smaller
+residual deviance than the parallel model. The difference is only 1.068.
+Since both deviance values are above 7400, this is a very small
+improvement. This means that the non-parallel model does not provide a
+meaningful improvement in fit compared with the extra complexity it
+adds.
+
+\section*{Understanding Estimates, Odds Ratios and
+P-values}\label{understanding-estimates-odds-ratios-and-p-values}
+\addcontentsline{toc}{section}{Understanding Estimates, Odds Ratios and
+P-values}
+
+This section explains the main model output in simple terms. It is
+included because model coefficients, odds ratios and p-values are often
+misunderstood.
+
+\subsection*{Estimates}\label{estimates}
+\addcontentsline{toc}{subsection}{Estimates}
+
+The Estimate value is the coefficient produced by the model. It is
+measured on the log-odds scale. A positive estimate means the predictor
+increases the cumulative log-odds. A negative estimate means the
+predictor decreases the cumulative log-odds.
+
+In this project, the outcome categories are ordered from Excellent to
+Poor. Because of this coding direction, negative predictor estimates
+generally indicate lower cumulative odds of being in better health
+categories. For example, a negative smoking estimate suggests that
+current smokers are less likely to report better health compared with
+non-smokers, after adjusting for the other predictors.
+
+The estimate is important because it gives the direction of the
+association. However, log-odds are difficult to interpret directly, so
+odds ratios are usually reported.
+
+\subsection*{Odds ratios}\label{odds-ratios}
+\addcontentsline{toc}{subsection}{Odds ratios}
+
+An odds ratio is calculated by exponentiating the estimate:
+
+\[
+\mathrm{Odds\ Ratio} = \exp(\mathrm{Estimate})
+\]
+
+An odds ratio of 1 means no change in odds. An odds ratio greater than 1
+means the odds increase. An odds ratio less than 1 means the odds
+decrease.
+
+For example, if the smoking odds ratio is 0.432, this means current
+smokers have 0.432 times the cumulative odds of better self-reported
+health compared with non-smokers, after adjusting for age, BMI and
+gender. Another way to explain this is that current smokers have
+approximately \(1 - 0.432 = 0.568\), or 56.8\%, lower odds of better
+self-reported health. This is an odds interpretation, not a direct
+probability interpretation.
+
+\subsection*{P-values}\label{p-values}
+\addcontentsline{toc}{subsection}{P-values}
+
+A p-value helps assess whether there is statistical evidence that a
+predictor is associated with the outcome. A small p-value means the
+observed association is unlikely to be due to random variation alone,
+assuming the model is correct. A common threshold is 0.05.
+
+In this project, p-values below 0.05 are treated as evidence that the
+predictor is associated with self-reported health after adjusting for
+the other variables. However, a p-value does not measure the size of the
+effect. For effect size, the odds ratio is more useful.
+
+A p-value also does not prove causation. This project uses observational
+survey data, so the results should be interpreted as associations rather
+than causal effects.
+
+\section*{Example Prediction for a Particular
+Person}\label{example-prediction-for-a-particular-person}
+\addcontentsline{toc}{section}{Example Prediction for a Particular
+Person}
+
+This section shows how the parallel cumulative logit model can be used
+for one person. The aim is to explain the practical meaning of the
+estimates, intercepts, exponentiation and predicted probabilities. This
+example follows the same manual calculation logic used in the project
+calculation notes (Project Calculation Notes 2026).
+
+The example person is:
+
+\begin{itemize}
+\tightlist
+\item
+  Age = 27 years
+\item
+  BMI = 10
+\item
+  Gender = male
+\item
+  Current smoking status = No
+\end{itemize}
+
+The BMI value of 10 is used only to reproduce the manual arithmetic
+example. It should not be treated as a typical adult BMI value. The
+purpose here is to show the calculation steps clearly.
+
+\begin{longtable}[]{@{}rrll@{}}
+\caption{Illustrative person used for manual cumulative logit
+calculation.}\tabularnewline
+\toprule\noalign{}
+Age & BMI & Gender & Smoking \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Age & BMI & Gender & Smoking \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+27 & 10 & male & No \\
+\end{longtable}
+
+\subsection*{Step 1: Extract model
+estimates}\label{step-1-extract-model-estimates}
+\addcontentsline{toc}{subsection}{Step 1: Extract model estimates}
+
+The parallel model has four threshold intercepts and one coefficient for
+each predictor. In the parallel model, the predictor coefficients are
+the same across the thresholds. Only the intercept changes from one
+threshold to another.
+
+\begin{longtable}[]{@{}lr@{}}
+\caption{Parallel model estimates used in the manual
+calculation.}\tabularnewline
+\toprule\noalign{}
+Term & Estimate \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Term & Estimate \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+(Intercept):1 & 0.473418 \\
+(Intercept):2 & 2.561695 \\
+(Intercept):3 & 4.590259 \\
+(Intercept):4 & 6.648358 \\
+Age & -0.011812 \\
+Gendermale & -0.153296 \\
+BMI & -0.073276 \\
+SmokingYes & -0.839791 \\
+\end{longtable}
+
+Table 11 shows the estimates used in the calculation. The intercepts
+represent the four cumulative thresholds. The predictor estimates
+represent the contribution of age, gender, BMI and smoking status.
+
+\subsection*{Step 2: Calculate the predictor part without
+intercept}\label{step-2-calculate-the-predictor-part-without-intercept}
+\addcontentsline{toc}{subsection}{Step 2: Calculate the predictor part
+without intercept}
+
+The predictor part is calculated by multiplying each predictor value by
+its model estimate and then adding the results together. For this
+example person, male is coded as 1 and current smoking is coded as 0.
+
+The calculation is:
+
+\[
+(\beta_{Age} \times Age) + (\beta_{Male} \times Male) + (\beta_{BMI} \times BMI) + (\beta_{Smoking} \times Smoking)
+\]
+
+\begin{longtable}[]{@{}llr@{}}
+\caption{Manual calculation of the predictor part without
+intercept.}\tabularnewline
+\toprule\noalign{}
+Component & Calculation & Value \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Component & Calculation & Value \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Age part & -0.011812 × 27 & -0.3189 \\
+Male part & -0.153296 × 1 & -0.1533 \\
+BMI part & -0.073276 × 10 & -0.7328 \\
+Smoking part & -0.839791 × 0 & 0.0000 \\
+Total predictor part & Sum of all parts & -1.2050 \\
+\end{longtable}
+
+Table 12 shows the calculation of the predictor part. The total
+predictor part is the value before adding the threshold intercepts. This
+is similar to the console calculation where the age effect, gender
+effect, BMI effect and smoking effect are added first.
+
+\subsection*{Step 3: Add each threshold
+intercept}\label{step-3-add-each-threshold-intercept}
+\addcontentsline{toc}{subsection}{Step 3: Add each threshold intercept}
+
+The next step is to add each threshold intercept to the predictor part.
+This gives four cumulative logits, one for each threshold.
+
+\begin{longtable}[]{@{}lrrr@{}}
+\caption{Manual calculation after adding threshold
+intercepts.}\tabularnewline
+\toprule\noalign{}
+Threshold & Intercept & Predictor\_without\_intercept &
+Cumulative\_Logit \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Threshold & Intercept & Predictor\_without\_intercept &
+Cumulative\_Logit \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Threshold 1 & 0.4734 & -1.205 & -0.7316 \\
+Threshold 2 & 2.5617 & -1.205 & 1.3567 \\
+Threshold 3 & 4.5903 & -1.205 & 3.3853 \\
+Threshold 4 & 6.6484 & -1.205 & 5.4434 \\
+\end{longtable}
+
+Table 13 shows the four cumulative logits. The reason there are four
+logits is that the outcome has five ordered categories, so the model has
+four cumulative thresholds.
+
+\subsection*{Step 4: Apply
+exponentiation}\label{step-4-apply-exponentiation}
+\addcontentsline{toc}{subsection}{Step 4: Apply exponentiation}
+
+The cumulative logits are on the log-odds scale. To convert each logit
+into cumulative odds, the exponential function is applied:
+
+\[
+\mathrm{Cumulative\ Odds} = \exp(\mathrm{Cumulative\ Logit})
+\]
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1446}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1205}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.3373}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2048}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1928}}@{}}
+\caption{Conversion from cumulative logits to cumulative odds using
+exp().}\tabularnewline
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Threshold
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Intercept
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Predictor\_without\_intercept
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Cumulative\_Logit
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Cumulative\_Odds
+\end{minipage} \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Threshold
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Intercept
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Predictor\_without\_intercept
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Cumulative\_Logit
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Cumulative\_Odds
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Threshold 1 & 0.4734 & -1.205 & -0.7316 & 0.4811 \\
+Threshold 2 & 2.5617 & -1.205 & 1.3567 & 3.8834 \\
+Threshold 3 & 4.5903 & -1.205 & 3.3853 & 29.5268 \\
+Threshold 4 & 6.6484 & -1.205 & 5.4434 & 231.2270 \\
+\end{longtable}
+
+Table 14 shows the result after applying \texttt{exp()}. This step
+explains why exponentiation is used in ordinal regression. However,
+these values are cumulative odds, not final category probabilities.
+
+\subsection*{Step 5: Convert cumulative logits to cumulative
+probabilities}\label{step-5-convert-cumulative-logits-to-cumulative-probabilities}
+\addcontentsline{toc}{subsection}{Step 5: Convert cumulative logits to
+cumulative probabilities}
+
+The cumulative logit can also be converted into a cumulative probability
+using the logistic function:
+
+\[
+P = \frac{\exp(\eta)}{1 + \exp(\eta)}
+\]
+
+where \(\eta\) is the cumulative logit.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1132}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.0943}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.2642}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1604}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1509}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.2170}}@{}}
+\caption{Conversion from cumulative odds to cumulative
+probabilities.}\tabularnewline
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Threshold
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Intercept
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Predictor\_without\_intercept
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Cumulative\_Logit
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Cumulative\_Odds
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Cumulative\_Probability
+\end{minipage} \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Threshold
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Intercept
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Predictor\_without\_intercept
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Cumulative\_Logit
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Cumulative\_Odds
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Cumulative\_Probability
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Threshold 1 & 0.4734 & -1.205 & -0.7316 & 0.4811 & 0.3248 \\
+Threshold 2 & 2.5617 & -1.205 & 1.3567 & 3.8834 & 0.7952 \\
+Threshold 3 & 4.5903 & -1.205 & 3.3853 & 29.5268 & 0.9672 \\
+Threshold 4 & 6.6484 & -1.205 & 5.4434 & 231.2270 & 0.9957 \\
+\end{longtable}
+
+Table 15 shows the cumulative probabilities. These probabilities are
+cumulative, so they do not directly give the probability of one single
+health category. They describe the probability up to each threshold.
+
+\subsection*{Step 6: Calculate final category
+probabilities}\label{step-6-calculate-final-category-probabilities}
+\addcontentsline{toc}{subsection}{Step 6: Calculate final category
+probabilities}
+
+To decide which health category is most likely for this person, the
+probability of each individual category must be calculated. The easiest
+and safest way to do this in R is to use \texttt{predict()} with
+\texttt{type\ =\ "response"}.
+
+\begin{longtable}[]{@{}lr@{}}
+\caption{Predicted probability of each health category for the
+illustrative person.}\tabularnewline
+\toprule\noalign{}
+Health\_Category & Predicted\_Probability \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Health\_Category & Predicted\_Probability \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Excellent & 0.3249 \\
+Very good & 0.4704 \\
+Good & 0.1720 \\
+Fair & 0.0285 \\
+Poor & 0.0043 \\
+\end{longtable}
+
+Table 16 shows the predicted probability for each health category. The
+category with the largest predicted probability is the category the
+model considers most likely for this person.
+
+\begin{longtable}[]{@{}lr@{}}
+\caption{Most likely predicted health category for the illustrative
+person.}\tabularnewline
+\toprule\noalign{}
+Health\_Category & Predicted\_Probability \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Health\_Category & Predicted\_Probability \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Very good & 0.4704 \\
+\end{longtable}
+
+Table 17 shows the most likely predicted category. This final step is
+important because exponentiating the logits alone does not directly
+decide the health category. The correct approach is to calculate the
+probability of each category and then identify the category with the
+largest predicted probability.
+
+This example shows the full logic of the model in a practical way. The
+process is:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  multiply each predictor value by its estimate,
+\item
+  add the threshold intercepts,
+\item
+  convert logits into odds using \texttt{exp()},
+\item
+  convert odds into cumulative probabilities,
+\item
+  calculate individual category probabilities,
+\item
+  select the category with the highest predicted probability.
+\end{enumerate}
+
+This is why estimates, odds ratios and predicted probabilities all have
+different roles. Estimates are used inside the model, odds ratios
+explain predictor effects, and predicted probabilities help explain the
+expected health category for a specific person.
+
+\subsection*{Non-parallel example for the same
+person}\label{non-parallel-example-for-the-same-person}
+\addcontentsline{toc}{subsection}{Non-parallel example for the same
+person}
+
+The same example person can also be checked using the non-parallel
+model. This is useful because the non-parallel model does not use one
+common effect for each predictor. Instead, age, BMI, gender and smoking
+can have different effects at each cumulative threshold.
+
+The example person is kept the same:
+
+\begin{itemize}
+\tightlist
+\item
+  Age = 27 years
+\item
+  BMI = 10
+\item
+  Gender = male
+\item
+  Current smoking status = No
+\end{itemize}
+
+The non-parallel calculation is different from the parallel calculation.
+In the parallel model, the predictor part was the same for all
+thresholds. In the non-parallel model, the predictor part is different
+for each threshold because each threshold has its own coefficient for
+age, BMI, gender and smoking.
+
+For threshold \(j\), the calculation is:
+
+\[
+\eta_j = \alpha_j + \beta_{Age,j}(\mathrm{Age}) + \beta_{Male,j}(\mathrm{Male}) + \beta_{BMI,j}(\mathrm{BMI}) + \beta_{Smoking,j}(\mathrm{SmokingYes})
+\]
+
+where \(\eta_j\) is the cumulative logit for threshold \(j\). The
+subscript \(j\) shows that the coefficient can change from one threshold
+to another.
+
+\begin{longtable}[]{@{}lr@{}}
+\caption{Non-parallel model threshold-specific estimates used in the
+example calculation.}\tabularnewline
+\toprule\noalign{}
+Term & Estimate \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Term & Estimate \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+(Intercept):1 & 0.388767 \\
+(Intercept):2 & 2.364726 \\
+(Intercept):3 & 4.279083 \\
+(Intercept):4 & 7.478113 \\
+Age:1 & -0.006790 \\
+Age:2 & -0.009686 \\
+Age:3 & -0.014748 \\
+Age:4 & -0.022341 \\
+BMI:1 & -0.075454 \\
+BMI:2 & -0.069742 \\
+BMI:3 & -0.060686 \\
+BMI:4 & -0.102471 \\
+Gendermale:1 & -0.110064 \\
+Gendermale:2 & -0.128388 \\
+Gendermale:3 & -0.195104 \\
+Gendermale:4 & 0.210609 \\
+SmokingYes:1 & -0.809197 \\
+SmokingYes:2 & -0.802619 \\
+SmokingYes:3 & -0.796958 \\
+SmokingYes:4 & -0.518359 \\
+\end{longtable}
+
+Table 18 shows that the non-parallel model has more estimates than the
+parallel model. This is because each predictor can have a different
+estimate at each threshold. This makes the model more flexible, but also
+harder to explain.
+
+The next table calculates the threshold-specific predictor part for the
+same person.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.0896}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.0672}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.0672}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.0746}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.0970}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1119}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.0746}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1269}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1194}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1716}}@{}}
+\caption{Manual non-parallel calculation for the illustrative
+person.}\tabularnewline
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Threshold
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Age\_part
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+BMI\_part
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Male\_part
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Smoking\_part
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Predictor\_part
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Intercept
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Cumulative\_Logit
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Cumulative\_Odds
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Cumulative\_Probability
+\end{minipage} \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Threshold
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Age\_part
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+BMI\_part
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Male\_part
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Smoking\_part
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Predictor\_part
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Intercept
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Cumulative\_Logit
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Cumulative\_Odds
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Cumulative\_Probability
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Threshold 1 & -0.1833 & -0.7545 & -0.1101 & 0 & -1.0479 & 0.3888 &
+-0.6592 & 0.5173 & 0.3409 \\
+Threshold 2 & -0.2615 & -0.6974 & -0.1284 & 0 & -1.0873 & 2.3647 &
+1.2774 & 3.5873 & 0.7820 \\
+Threshold 3 & -0.3982 & -0.6069 & -0.1951 & 0 & -1.2002 & 4.2791 &
+3.0789 & 21.7349 & 0.9560 \\
+Threshold 4 & -0.6032 & -1.0247 & 0.2106 & 0 & -1.4173 & 7.4781 & 6.0608
+& 428.7241 & 0.9977 \\
+\end{longtable}
+
+Table 19 shows the manual non-parallel calculation. The important
+difference is that the predictor part changes across thresholds. This
+happens because the non-parallel model estimates separate effects for
+each threshold.
+
+As with the parallel model, exponentiating the cumulative logits gives
+cumulative odds. The cumulative odds can then be converted to cumulative
+probabilities. However, these are still cumulative probabilities. To
+decide the most likely health category, the category probabilities must
+be calculated.
+
+\begin{longtable}[]{@{}lr@{}}
+\caption{Non-parallel predicted probability of each health category for
+the illustrative person.}\tabularnewline
+\toprule\noalign{}
+Health\_Category & Predicted\_Probability \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Health\_Category & Predicted\_Probability \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Excellent & 0.3409 \\
+Very good & 0.4411 \\
+Good & 0.1740 \\
+Fair & 0.0417 \\
+Poor & 0.0023 \\
+\end{longtable}
+
+Table 20 shows the predicted probability of each health category from
+the non-parallel model. The final predicted category is the category
+with the largest predicted probability.
+
+\begin{longtable}[]{@{}lr@{}}
+\caption{Most likely predicted health category from the non-parallel
+model.}\tabularnewline
+\toprule\noalign{}
+Health\_Category & Predicted\_Probability \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Health\_Category & Predicted\_Probability \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Very good & 0.4411 \\
+\end{longtable}
+
+Table 21 gives the most likely predicted category from the non-parallel
+model. This shows how the non-parallel model can also be used for
+individual-level prediction. However, because the non-parallel model
+uses different effects at different thresholds, the calculation is
+longer and more difficult to interpret.
+
+This example supports the final model choice. The non-parallel model can
+produce predictions, but the explanation is more complicated. The
+parallel model is easier to explain because it uses one effect for each
+predictor. Since the non-parallel model did not meaningfully improve
+residual deviance, the simpler parallel model remains the preferred
+final model.
+
+\section*{Predicted Probabilities}\label{predicted-probabilities}
+\addcontentsline{toc}{section}{Predicted Probabilities}
+
+Predicted probabilities are useful because they show the model results
+in an easier form than log-odds or odds ratios. Instead of only saying
+that age or smoking changes the odds, predicted probabilities show how
+the probability of each health category changes across a predictor.
+
+In this project, predicted probabilities were calculated across the
+observed age range. BMI was fixed at the mean value, gender was fixed at
+the reference category, and smoking was fixed as No.~This makes the age
+pattern easier to view.
+
+Figure 8 shows the predicted probabilities from the parallel model.
+
+\begin{figure}[H]
+\includegraphics[width=0.85\linewidth]{Thesis_files/figure-latex/parallel-predicted-probabilities-1} \caption{Predicted probabilities from the parallel model.}\label{fig:parallel-predicted-probabilities}
+\end{figure}
+
+Figure 8 shows how the predicted probabilities change with age under the
+parallel model. The graph is easier to understand than log-odds because
+it shows probabilities for each health category directly.
+
+Figure 9 shows the predicted probabilities from the non-parallel model.
+
+\begin{figure}[H]
+\includegraphics[width=0.85\linewidth]{Thesis_files/figure-latex/nonparallel-predicted-probabilities-1} \caption{Predicted probabilities from the non-parallel model.}\label{fig:nonparallel-predicted-probabilities}
+\end{figure}
+
+Figure 9 shows the predicted probability pattern under the non-parallel
+model. This model is more flexible, so the curves may differ slightly
+from the parallel model. However, flexibility alone is not enough to
+choose it as the final model.
+
+Figure 10 compares the predicted probabilities from the parallel and
+non-parallel models side by side.
+
+\begin{figure}[H]
+\includegraphics[width=0.85\linewidth]{Thesis_files/figure-latex/combined-predicted-probabilities-1} \caption{Parallel and non-parallel predicted probabilities compared.}\label{fig:combined-predicted-probabilities}
+\end{figure}
+
+Figure 10 shows that the predicted probability patterns from the two
+models are broadly similar. This supports the decision to keep the
+parallel model as the main model. The non-parallel model did not produce
+a large enough improvement to justify the extra complexity.
+
+\FloatBarrier
+
+\section*{Model Comparison and Final Model
+Choice}\label{model-comparison-and-final-model-choice}
+\addcontentsline{toc}{section}{Model Comparison and Final Model Choice}
+
+The final model choice was based on both statistical results and
+interpretation. The non-parallel model had a slightly lower residual
+deviance than the parallel model. However, the reduction was only 1.068.
+Since the residual deviance values were above 7400, this difference was
+very small. This follows a common modelling principle: a more complex
+model should only be preferred when it provides a meaningful improvement
+in fit or interpretation (Course Material 2026b; Burnham and Anderson
+2002).
+
+The parallel model has several advantages. First, it gives one
+coefficient and one odds ratio for each predictor. This makes it easier
+to interpret the effect of age, BMI, gender and smoking. Second, it
+produced stable fit statistics such as residual deviance,
+log-likelihood, AIC and BIC. Third, the predicted probability patterns
+were similar to the non-parallel model.
+
+The non-parallel model was useful as a sensitivity check. It showed that
+allowing threshold-specific effects did not meaningfully improve the
+model. However, the output was more complex because each predictor had
+separate coefficients at different thresholds. This made the model
+harder to explain clearly.
+
+The final model decision is summarised by the code below.
+
+\begin{verbatim}
+## 
+## FINAL MODEL DECISION
+\end{verbatim}
+
+\begin{verbatim}
+## --------------------
+\end{verbatim}
+
+\begin{verbatim}
+## Parallel model residual deviance: 7418.732
+\end{verbatim}
+
+\begin{verbatim}
+## Non-parallel model residual deviance: 7417.663
+\end{verbatim}
+
+\begin{verbatim}
+## Difference: 1.069
+\end{verbatim}
+
+\begin{verbatim}
+## The non-parallel model has a slightly lower residual deviance.
+\end{verbatim}
+
+\begin{verbatim}
+## However, the difference is very small compared with a deviance above 7400.
+\end{verbatim}
+
+\begin{verbatim}
+## Therefore, the parallel cumulative logit ordinal regression model is preferred.
+\end{verbatim}
+
+Based on the model comparison, the parallel cumulative logit model was
+selected as the main model for this project. It provided a good balance
+between statistical fit, stability and interpretability.
+
+\section*{Discussion}\label{discussion}
+\addcontentsline{toc}{section}{Discussion}
+
+The results show that ordinal regression is a suitable method for
+analysing self-reported health because the outcome is ordered. The
+analysis also shows that the selected predictors have meaningful
+relationships with self-reported health.
+
+Age and BMI both had negative coefficients in the parallel model. This
+suggests that older age and higher BMI are associated with lower odds of
+better self-reported health. This is consistent with the exploratory
+graphs, where poorer health categories tended to include older
+participants and higher BMI values.
+
+Current smoking had the strongest association among the predictors. The
+odds ratio for current smokers was below 1, suggesting that current
+smokers had lower odds of reporting better health compared with
+non-smokers, after adjusting for age, BMI and gender. This result is
+important because smoking is a major lifestyle factor related to health.
+
+Gender was also included as a predictor. The coefficient for male
+participants compared with the reference category was negative in the
+parallel model. This suggests a difference in self-reported health by
+gender after adjustment for the other variables.
+
+The comparison between the parallel and non-parallel models was an
+important part of the analysis. The non-parallel model was more
+flexible, but it did not substantially improve model fit. This supports
+the use of the simpler parallel model. In applied data analysis, the
+best model is not always the most complex model. A model should also be
+understandable, stable and useful for answering the research question.
+
+A further strength of the report is that it includes both model-level
+interpretation and person-level prediction. The model-level
+interpretation explains the general association of age, BMI, gender and
+smoking with self-reported health. The person-level prediction example
+shows how the fitted model can be used for a specific profile. This
+makes the analysis easier to understand because it connects the
+statistical output to a practical calculation.
+
+\section*{Limitations}\label{limitations}
+\addcontentsline{toc}{section}{Limitations}
+
+This project has several limitations.
+
+First, the analysis uses observational survey data. This means the
+results should be interpreted as associations, not causal effects. For
+example, the model can show that smoking is associated with poorer
+self-reported health, but it cannot prove causation from this analysis
+alone.
+
+Second, the outcome variable is self-reported. Self-reported health is
+useful, but it is subjective. Different people may interpret the health
+categories differently. One person may describe their health as Good
+while another person with similar health conditions may choose Fair.
+
+Third, only a small number of predictors were included. Age, BMI, gender
+and smoking are important, but many other variables may also affect
+self-reported health. These include income, education, physical
+activity, chronic disease, mental health, access to healthcare and diet.
+
+Fourth, the project used complete cases after selecting the variables.
+Although the final modelling dataset had no missing values for the
+selected variables, complete-case analysis may still exclude some
+records from the original NHANES data.
+
+Fifth, the analysis did not apply the full complex survey design
+features of NHANES, such as sampling weights, strata and clusters.
+Including survey design features would make the analysis more
+representative of the United States population and would follow the full
+survey-analysis framework recommended for NHANES data (Centers for
+Disease Control and Prevention, National Center for Health Statistics
+2024a, 2024b).
+
+Finally, the non-parallel model was more complex and harder to
+interpret. Although it was useful as a sensitivity check, its additional
+complexity was not justified by the very small reduction in residual
+deviance.
+
+\section*{Conclusion and Future Work}\label{conclusion-and-future-work}
+\addcontentsline{toc}{section}{Conclusion and Future Work}
+
+This project analysed self-reported general health using cumulative
+logit ordinal regression. The outcome variable was ordered from
+Excellent to Poor, so ordinal regression was more appropriate than
+ordinary linear regression. The predictors included age, BMI, gender and
+current smoking status.
+
+The exploratory analysis showed clear patterns in the data. Most
+participants reported Good or Very good health, while fewer participants
+reported Poor health. Age and BMI also showed visible differences across
+health categories.
+
+The parallel cumulative logit model showed that age, BMI, gender and
+smoking were associated with self-reported health. Odds ratios below 1
+indicated lower cumulative odds of better self-reported health. Current
+smoking showed the strongest association with poorer self-reported
+health.
+
+The non-parallel model was fitted as a sensitivity check. It produced a
+slightly lower residual deviance than the parallel model, but the
+difference was only 1.068. This was too small to justify the extra
+complexity. Therefore, the parallel model was selected as the final
+model because it was simpler, more stable and easier to interpret.
+
+Future work could extend this project in several ways. First, additional
+predictors such as income, education, physical activity, chronic illness
+and mental health could be included. Second, NHANES survey weights and
+design variables could be used to make the results more representative.
+Third, interaction effects could be tested, for example whether the
+association between BMI and self-reported health differs by gender or
+smoking status. Fourth, partial proportional odds models could be
+explored as a middle option between the parallel and non-parallel
+models. Finally, an interactive dashboard could be developed to allow
+users to explore predicted probabilities for different age, BMI, gender
+and smoking profiles.
+
+Overall, this project shows that cumulative logit ordinal regression is
+a useful and interpretable method for analysing ordered health outcomes.
+It also shows that model choice should consider both statistical fit and
+practical interpretation.
+
+\section*{References}\label{references}
+\addcontentsline{toc}{section}{References}
+
+\protect\phantomsection\label{refs}
+\begin{CSLReferences}{1}{1}
+\bibitem[\citeproctext]{ref-agresti2010}
+Agresti, Alan. 2010. \emph{Analysis of Ordinal Categorical Data}. 2nd
+ed. Wiley.
+
+\bibitem[\citeproctext]{ref-agresti2015}
+Agresti, Alan. 2015. \emph{Foundations of Linear and Generalized Linear
+Models}. Wiley.
+
+\bibitem[\citeproctext]{ref-burnham2002}
+Burnham, Kenneth P., and David R. Anderson. 2002. \emph{Model Selection
+and Multimodel Inference: A Practical Information-Theoretic Approach}.
+2nd ed. Springer.
+
+\bibitem[\citeproctext]{ref-cdcnhanes}
+Centers for Disease Control and Prevention, National Center for Health
+Statistics. 2024a. \emph{National Health and Nutrition Examination
+Survey}. \url{https://www.cdc.gov/nchs/nhanes/}.
+
+\bibitem[\citeproctext]{ref-cdcnhanesdata}
+Centers for Disease Control and Prevention, National Center for Health
+Statistics. 2024b. \emph{NHANES Questionnaires, Datasets, and Related
+Documentation}. \url{https://wwwn.cdc.gov/nchs/nhanes/}.
+
+\bibitem[\citeproctext]{ref-orm_intro_notes}
+Course Material. 2026a. \emph{Introduction to Ordered Regression
+Models}.
+
+\bibitem[\citeproctext]{ref-likelihood_deviance_notes}
+Course Material. 2026b. \emph{Likelihood and Deviance}.
+
+\bibitem[\citeproctext]{ref-fullerton_xu2016}
+Fullerton, Andrew S., and Jun Xu. 2016. \emph{Ordered Regression Models:
+Parallel, Partial, and Non-Parallel Alternatives}. Chapman; Hall/CRC.
+
+\bibitem[\citeproctext]{ref-mccullagh1980}
+McCullagh, Peter. 1980. {``Regression Models for Ordinal Data.''}
+\emph{Journal of the Royal Statistical Society: Series B
+(Methodological)} 42 (2): 109--42.
+
+\bibitem[\citeproctext]{ref-parallel_interpretation_notes}
+Project Calculation Notes. 2026. \emph{Parallel Cumulative Logit Model
+Interpretation Notes}.
+
+\bibitem[\citeproctext]{ref-nhanespackage}
+Pruim, Randall. 2016. \emph{NHANES: Data from the US National Health and
+Nutrition Examination Survey}.
+\url{https://CRAN.R-project.org/package=NHANES}.
+
+\bibitem[\citeproctext]{ref-wickham2016}
+Wickham, Hadley. 2016. \emph{Ggplot2: Elegant Graphics for Data
+Analysis}. Springer. \url{https://ggplot2-book.org/}.
+
+\bibitem[\citeproctext]{ref-yee2010}
+Yee, Thomas W. 2010. {``The VGAM Package for Categorical Data
+Analysis.''} \emph{Journal of Statistical Software} 32 (10): 1--34.
+\url{https://doi.org/10.18637/jss.v032.i10}.
+
+\bibitem[\citeproctext]{ref-yee2015}
+Yee, Thomas W. 2015. \emph{Vector Generalized Linear and Additive
+Models: With an Implementation in r}. Springer.
+
+\bibitem[\citeproctext]{ref-vgampackage}
+Yee, Thomas W. 2024. \emph{VGAM: Vector Generalized Linear and Additive
+Models}. \url{https://CRAN.R-project.org/package=VGAM}.
+
+\end{CSLReferences}
+
+\bibliographystyle{unsrt}
+\bibliography{references.bib}
+
+
+\end{document}
