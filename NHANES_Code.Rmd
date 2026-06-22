@@ -1,19 +1,27 @@
 ---
-title: "NHANES Ordinal Regression"
+title: "NHANES Ordinal Regression: Interactive Model Comparison and Health Category Prediction"
 author: "Manasvi Saite"
 affiliation: "University of Galway"
-output: html_document
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+runtime: shiny
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
 library(tidyverse)
 library(VGAM)
 library(knitr)
 library(NHANES)
+library(shiny)
+library(plotly)
 ```
 
-## Data Preparation
+# Data Preparation
 
 ```{r}
 data(NHANES)
@@ -41,7 +49,18 @@ df <- NHANES %>%
 summary(df)
 ```
 
-## Exploratory Data Analysis
+# Exploratory Data Analysis
+
+## Colour Names Used in Graphs
+
+```{r colours}
+bar_colour <- "pink"
+histogram_colour <- "grey"
+box_fill_colour <- "pink"
+box_border_colour <- "grey"
+```
+
+## Missing Data 
 
 ```{r}
 missing_summary <- data.frame(
@@ -53,29 +72,43 @@ missing_summary <- data.frame(
 kable(missing_summary)
 ```
 
+## Health Count
+
 ```{r}
 kable(as.data.frame(table(df$Health)), col.names = c("Health", "Count"))
 ```
+
+
+## Gender Count 
 
 ```{r}
 kable(as.data.frame(table(df$Gender)), col.names = c("Gender", "Count"))
 ```
 
+## Smoking Status Count
+
 ```{r}
 kable(as.data.frame(table(df$Smoking)), col.names = c("Smoking", "Count"))
 ```
+
+## Age Summary
 
 ```{r}
 summary(df$Age)
 ```
 
+## Bmi Summary
+
 ```{r}
 summary(df$BMI)
 ```
 
+
+## Distribution of Self-Reported Health
+
 ```{r}
 ggplot(df, aes(x = Health)) +
-  geom_bar() +
+  geom_bar(fill = bar_colour, colour = "white") +
   labs(
     title = "Distribution of Self-Reported Health",
     x = "Health Category",
@@ -84,9 +117,11 @@ ggplot(df, aes(x = Health)) +
   theme_minimal()
 ```
 
+## Distribution of Gender
+
 ```{r}
 ggplot(df, aes(x = Gender)) +
-  geom_bar() +
+  geom_bar(fill = bar_colour, colour = "white") +
   labs(
     title = "Distribution of Gender",
     x = "Gender",
@@ -95,9 +130,11 @@ ggplot(df, aes(x = Gender)) +
   theme_minimal()
 ```
 
+## Distribution of Smoking Status
+
 ```{r}
 ggplot(df, aes(x = Smoking)) +
-  geom_bar() +
+  geom_bar(fill = bar_colour, colour = "white") +
   labs(
     title = "Distribution of Smoking Status",
     x = "Smoking Status",
@@ -106,9 +143,11 @@ ggplot(df, aes(x = Smoking)) +
   theme_minimal()
 ```
 
+## Distribution of Age
+
 ```{r}
 ggplot(df, aes(x = Age)) +
-  geom_histogram(bins = 30) +
+  geom_histogram(bins = 30, fill = histogram_colour, colour = "white") +
   labs(
     title = "Age Distribution",
     x = "Age",
@@ -117,9 +156,11 @@ ggplot(df, aes(x = Age)) +
   theme_minimal()
 ```
 
+## Distribution of BMI
+
 ```{r}
 ggplot(df, aes(x = BMI)) +
-  geom_histogram(bins = 30) +
+  geom_histogram(bins = 30, fill = histogram_colour, colour = "white") +
   labs(
     title = "BMI Distribution",
     x = "BMI",
@@ -128,9 +169,12 @@ ggplot(df, aes(x = BMI)) +
   theme_minimal()
 ```
 
+
+## Age by Self-Reported Health
+
 ```{r}
 ggplot(df, aes(x = Health, y = Age)) +
-  geom_boxplot() +
+  geom_boxplot(fill = box_fill_colour, colour = box_border_colour) +
   labs(
     title = "Age by Self-Reported Health",
     x = "Health Category",
@@ -139,9 +183,11 @@ ggplot(df, aes(x = Health, y = Age)) +
   theme_minimal()
 ```
 
+## BMI by Self-Reported Health
+
 ```{r}
 ggplot(df, aes(x = Health, y = BMI)) +
-  geom_boxplot() +
+  geom_boxplot(fill = box_fill_colour, colour = box_border_colour) +
   labs(
     title = "BMI by Self-Reported Health",
     x = "Health Category",
@@ -150,7 +196,7 @@ ggplot(df, aes(x = Health, y = BMI)) +
   theme_minimal()
 ```
 
-## Prediction Data for Parallel Model
+# Parallel Cumulative Logit Model
 
 ```{r}
 newdata_parallel <- data.frame(
@@ -163,9 +209,6 @@ newdata_parallel <- data.frame(
 head(newdata_parallel)
 ```
 
-
-## Parallel Cumulative Logit Model
-
 ```{r}
 parallel_model <- vglm(
   Health ~ Age + Gender + BMI + Smoking,
@@ -176,9 +219,6 @@ parallel_model <- vglm(
 
 summary(parallel_model)
 ```
-
-
-## Plot for Parallel Model
 
 ```{r}
 pred_parallel <- predict(parallel_model, newdata = newdata_parallel, type = "response")
@@ -209,14 +249,11 @@ ggplot(plot_parallel, aes(x = Age, y = Probability, color = Health)) +
   theme_minimal()
 ```
 
-
-
-
-## Non-Parallel Cumulative Logit Model
+# Non-Parallel Cumulative Logit Model
 
 ```{r}
 nonparallel_model <- vglm(
-  Health ~ Age + BMI+ Gender+ Smoking,
+  Health ~ Age + BMI + Gender + Smoking,
   family = cumulative(link = "logitlink", parallel = FALSE),
   data = df,
   model = TRUE
@@ -224,8 +261,6 @@ nonparallel_model <- vglm(
 
 nonparallel_model
 ```
-
-## Prediction Data for Non-Parallel Model
 
 ```{r}
 newdata_nonparallel <- data.frame(
@@ -245,12 +280,9 @@ pred_nonparallel <- as.data.frame(pred_nonparallel)
 colnames(pred_nonparallel) <- c("1", "2", "3", "4", "5")
 ```
 
-
-## Plot for Non-Parallel Model
-
 ```{r}
 plot_nonparallel <- cbind(newdata_nonparallel, as.data.frame(pred_nonparallel)) %>%
-  `colnames<-`(c("Age", "BMI","Gender", "Smoking", "1", "2", "3", "4", "5")) %>%
+  `colnames<-`(c("Age", "BMI", "Gender", "Smoking", "1", "2", "3", "4", "5")) %>%
   pivot_longer(
     cols = c("1", "2", "3", "4", "5"),
     names_to = "Health",
@@ -275,8 +307,7 @@ ggplot(plot_nonparallel, aes(x = Age, y = Probability, color = Health)) +
   theme_minimal()
 ```
 
-
-## Model Comparison
+# Model Comparison
 
 ```{r}
 AIC(parallel_model)
@@ -286,21 +317,259 @@ BIC(parallel_model)
 BIC(nonparallel_model)
 ```
 
+```{r}
+plot_both <- bind_rows(plot_parallel, plot_nonparallel)
+```
 
+# Interactive Model Comparison Graph
 
-
-## Combined Plot
+This section shows the previous model comparison idea as **two interactive graphs**: one for the non-parallel model and one for the parallel model. Hover over the lines to see the model, health category, age and predicted probability.
 
 ```{r}
 plot_both <- bind_rows(plot_parallel, plot_nonparallel)
 
-ggplot(plot_both, aes(x = Age, y = Probability, color = Health)) +
-  geom_line(linewidth = 1) +
-  facet_wrap(~Model) +
-  labs(
-    title = "Parallel vs Non-Parallel Cumulative Logit Models",
-    x = "Age",
-    y = "Predicted Probability"
-  ) +
-  theme_minimal()
+health_colours <- c(
+  "Excellent" = "#F8766D",
+  "Very good" = "#A3A500",
+  "Good" = "#00BF7D",
+  "Fair" = "#00B0F6",
+  "Poor" = "#E76BF3"
+)
+
+make_model_comparison_plot <- function(model_name) {
+  model_data <- plot_both %>% filter(Model == model_name)
+  p <- plot_ly()
+
+  for (h in levels(model_data$Health)) {
+    temp <- model_data %>% filter(Health == h)
+
+    p <- p %>%
+      add_lines(
+        data = temp,
+        x = ~Age,
+        y = ~Probability,
+        name = h,
+        legendgroup = h,
+        showlegend = model_name == "Non-parallel",
+        line = list(color = health_colours[[h]], width = 2),
+        customdata = ~paste0(
+          "Model: ", Model,
+          "<br>Health Category: ", Health,
+          "<br>Age: ", round(Age, 1),
+          "<br>Predicted Probability: ", round(Probability, 4)
+        ),
+        hovertemplate = "%{customdata}<extra></extra>"
+      )
+  }
+
+  p %>%
+    layout(
+      title = model_name,
+      xaxis = list(title = "Age"),
+      yaxis = list(title = "Predicted Probability")
+    )
+}
+
+subplot(
+  make_model_comparison_plot("Non-parallel"),
+  make_model_comparison_plot("Parallel"),
+  nrows = 1,
+  shareY = TRUE,
+  titleX = TRUE,
+  titleY = TRUE
+) %>%
+  layout(
+    title = "Interactive Model Comparison: Parallel vs Non-Parallel Cumulative Logit Models",
+    legend = list(title = list(text = "Health Category"))
+  )
+```
+
+# Interactive Health Category Prediction for a Person
+
+Enter a person's **Age**, **BMI**, **Gender** and **Smoking Status**.  
+The graph shows which self-reported health category the person is most likely to fall into.
+
+```{r}
+health_labels <- c("Excellent", "Very good", "Good", "Fair", "Poor")
+
+predict_person_parallel <- function(age, bmi, gender, smoking) {
+  new_person <- data.frame(
+    Age = age,
+    Gender = factor(gender, levels = levels(df$Gender)),
+    BMI = bmi,
+    Smoking = factor(smoking, levels = levels(df$Smoking))
+  )
+
+  pred <- predict(parallel_model, newdata = new_person, type = "response")
+  pred <- as.data.frame(pred)
+  colnames(pred) <- health_labels
+
+  pred %>%
+    pivot_longer(
+      cols = everything(),
+      names_to = "Health",
+      values_to = "Probability"
+    ) %>%
+    mutate(
+      Model = "Parallel",
+      Probability = round(Probability, 4)
+    )
+}
+
+predict_person_nonparallel <- function(age, bmi, gender, smoking) {
+  new_person <- data.frame(
+    Age = age,
+    BMI = bmi,
+    Gender = factor(gender, levels = levels(df$Gender)),
+    Smoking = factor(smoking, levels = levels(df$Smoking))
+  )
+
+  pred <- predictvglm(nonparallel_model, newdata = new_person, type = "response")
+  pred <- as.data.frame(pred)
+  colnames(pred) <- health_labels
+
+  pred %>%
+    pivot_longer(
+      cols = everything(),
+      names_to = "Health",
+      values_to = "Probability"
+    ) %>%
+    mutate(
+      Model = "Non-parallel",
+      Probability = round(Probability, 4)
+    )
+}
+```
+
+```{r, echo=FALSE}
+fluidRow(
+  column(
+    width = 3,
+    numericInput(
+      inputId = "input_age",
+      label = "Age",
+      value = 27,
+      min = min(df$Age),
+      max = max(df$Age),
+      step = 1
+    )
+  ),
+  column(
+    width = 3,
+    numericInput(
+      inputId = "input_bmi",
+      label = "BMI",
+      value = 25,
+      min = floor(min(df$BMI, na.rm = TRUE)),
+      max = ceiling(max(df$BMI, na.rm = TRUE)),
+      step = 0.1
+    )
+  ),
+  column(
+    width = 3,
+    selectInput(
+      inputId = "input_gender",
+      label = "Gender",
+      choices = levels(df$Gender),
+      selected = levels(df$Gender)[1]
+    )
+  ),
+  column(
+    width = 3,
+    selectInput(
+      inputId = "input_smoking",
+      label = "Smoking Status",
+      choices = levels(df$Smoking),
+      selected = levels(df$Smoking)[1]
+    )
+  )
+)
+```
+
+```{r, echo=FALSE}
+person_predictions <- reactive({
+  parallel_result <- predict_person_parallel(
+    age = input$input_age,
+    bmi = input$input_bmi,
+    gender = input$input_gender,
+    smoking = input$input_smoking
+  )
+
+  nonparallel_result <- predict_person_nonparallel(
+    age = input$input_age,
+    bmi = input$input_bmi,
+    gender = input$input_gender,
+    smoking = input$input_smoking
+  )
+
+  bind_rows(parallel_result, nonparallel_result) %>%
+    group_by(Model) %>%
+    mutate(
+      Highest_Probability = Probability == max(Probability),
+      Hover_Text = paste0(
+        "Model: ", Model,
+        "<br>Health Category: ", Health,
+        "<br>Predicted Probability: ", Probability,
+        ifelse(Highest_Probability, "<br><b>Predicted Category</b>", "")
+      )
+    ) %>%
+    ungroup()
+})
+```
+
+## Interactive Graph Showing the Predicted Health Category
+
+This graph shows the predicted probabilities for each health category. Nothing is written inside or on top of the bars. Move the mouse over a bar to see the model, category, probability and predicted category.
+
+```{r, echo=FALSE}
+renderPlotly({
+  pink_data <- person_predictions() %>% filter(Model == "Parallel")
+  grey_data <- person_predictions() %>% filter(Model == "Non-parallel")
+
+  plot_ly() %>%
+    add_bars(
+      data = pink_data,
+      x = ~Health,
+      y = ~Probability,
+      name = "Parallel",
+      marker = list(color = "pink"),
+      customdata = ~Hover_Text,
+      hovertemplate = "%{customdata}<extra></extra>"
+    ) %>%
+    add_bars(
+      data = grey_data,
+      x = ~Health,
+      y = ~Probability,
+      name = "Non-parallel",
+      marker = list(color = "grey"),
+      customdata = ~Hover_Text,
+      hovertemplate = "%{customdata}<extra></extra>"
+    ) %>%
+    layout(
+      title = "Which Health Category Does This Person Fall Into?",
+      barmode = "group",
+      xaxis = list(title = "Health Category"),
+      yaxis = list(title = "Predicted Probability", range = c(0, 1)),
+      legend = list(title = list(text = "Model"))
+    )
+})
+```
+
+## Final Predicted Category
+
+```{r, echo=FALSE}
+renderTable({
+  person_predictions() %>%
+    filter(Highest_Probability == TRUE) %>%
+    dplyr::select(Model, Predicted_Category = Health, Probability)
+})
+```
+
+## Full Probability Table
+
+```{r, echo=FALSE}
+renderTable({
+  person_predictions() %>%
+    dplyr::select(Model, Health, Probability)
+})
 ```
