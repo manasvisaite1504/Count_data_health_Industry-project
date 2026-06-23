@@ -1,6 +1,6 @@
 ---
-title: "NHANES Ordinal Regression: Interactive Model Comparison and Health Category Prediction"
-author: "Manasvi Saite"
+title: "NHANES Ordinal Regression"
+author: "Manasvi Saite & Kaushal Mayur"
 affiliation: "University of Galway"
 output:
   html_document:
@@ -19,6 +19,8 @@ library(knitr)
 library(NHANES)
 library(shiny)
 library(plotly)
+health_order <- c("Excellent", "Very good", "Good", "Fair", "Poor")
+
 ```
 
 # Data Preparation
@@ -384,7 +386,7 @@ subplot(
   )
 ```
 
-# Interactive Health Category Prediction for a Person
+# Interactive Health Category Prediction for a Particular Person
 
 Enter a person's **Age**, **BMI**, **Gender** and **Smoking Status**.  
 The graph shows which self-reported health category the person is most likely to fall into.
@@ -410,6 +412,7 @@ predict_person_parallel <- function(age, bmi, gender, smoking) {
       names_to = "Health",
       values_to = "Probability"
     ) %>%
+  mutate(Health = factor(Health, levels = health_order, ordered = TRUE)) %>%
     mutate(
       Model = "Parallel",
       Probability = round(Probability, 4)
@@ -434,6 +437,7 @@ predict_person_nonparallel <- function(age, bmi, gender, smoking) {
       names_to = "Health",
       values_to = "Probability"
     ) %>%
+  mutate(Health = factor(Health, levels = health_order, ordered = TRUE)) %>%
     mutate(
       Model = "Non-parallel",
       Probability = round(Probability, 4)
@@ -517,7 +521,7 @@ person_predictions <- reactive({
 })
 ```
 
-## Interactive Graph Showing the Predicted Health Category
+## Graph Showing the Predicted Health Category
 
 This graph shows the predicted probabilities for each health category. Nothing is written inside or on top of the bars. Move the mouse over a bar to see the model, category, probability and predicted category.
 
@@ -548,7 +552,7 @@ renderPlotly({
     layout(
       title = "Which Health Category Does This Person Fall Into?",
       barmode = "group",
-      xaxis = list(title = "Health Category"),
+      xaxis = list(title = "Health Category", categoryorder = "array", categoryarray = health_order),
       yaxis = list(title = "Predicted Probability", range = c(0, 1)),
       legend = list(title = list(text = "Model"))
     )
