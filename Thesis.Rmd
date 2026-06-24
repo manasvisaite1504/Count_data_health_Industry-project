@@ -1089,48 +1089,42 @@ kable(
 
 The table above shows that the non-parallel model has more estimates than the parallel model. This is because each predictor can have a different estimate at each threshold. This made the model more flexible, but also more complex to report.
 
-The next table calculates the threshold-specific predictor part for the same person.
+The next two tables show the non-parallel calculation. The first table shows the threshold-specific predictor parts, and the second table shows the intercepts, logits, odds and cumulative probabilities.
 
-```{r nonparallel-manual-predictor-parts}
-np_intercepts <- as.numeric(nonparallel_coef_all[
-  c("(Intercept):1", "(Intercept):2", "(Intercept):3", "(Intercept):4")
-])
-
-np_age <- as.numeric(nonparallel_coef_all[c("Age:1", "Age:2", "Age:3", "Age:4")])
-np_bmi <- as.numeric(nonparallel_coef_all[c("BMI:1", "BMI:2", "BMI:3", "BMI:4")])
-np_male <- as.numeric(nonparallel_coef_all[c("Gendermale:1", "Gendermale:2", "Gendermale:3", "Gendermale:4")])
-np_smoking <- as.numeric(nonparallel_coef_all[c("SmokingYes:1", "SmokingYes:2", "SmokingYes:3", "SmokingYes:4")])
-
-np_age_part <- np_age * age_value
-np_bmi_part <- np_bmi * bmi_value
-np_male_part <- np_male * male_value
-np_smoking_part <- np_smoking * smoking_value
-
-np_predictor_part <- np_age_part + np_bmi_part + np_male_part + np_smoking_part
-np_logit <- np_intercepts + np_predictor_part
-np_odds <- exp(np_logit)
-np_cum_prob <- np_odds / (1 + np_odds)
-
-nonparallel_manual_calculation <- data.frame(
+```{r nonparallel-manual-predictor-parts-table, echo=FALSE}
+nonparallel_calc_table_1 <- data.frame(
   Threshold = c("Threshold 1", "Threshold 2", "Threshold 3", "Threshold 4"),
-  Age_part = round(np_age_part, 4),
-  BMI_part = round(np_bmi_part, 4),
-  Male_part = round(np_male_part, 4),
-  Smoking_part = round(np_smoking_part, 4),
-  Predictor_part = round(np_predictor_part, 4),
-  Intercept = round(np_intercepts, 4),
-  Logit = round(np_logit, 4),
-  Odds = round(np_odds, 4),
-  Cum_Prob = round(np_cum_prob, 4)
+  Age_part = c(-0.1833, -0.2615, -0.3982, -0.6032),
+  BMI_part = c(-0.7545, -0.6974, -0.6069, -1.0247),
+  Male_part = c(-0.1101, -0.1284, -0.1951, 0.2106),
+  Smoking_part = c(0, 0, 0, 0),
+  Predictor_part = c(-1.0479, -1.0873, -1.2002, -1.4173)
 )
 
 kable(
-  nonparallel_manual_calculation,
-  caption = "Manual non-parallel calculation for the illustrative person."
+  nonparallel_calc_table_1,
+  caption = "Non-parallel threshold-specific predictor calculation for the illustrative person.",
+  digits = 4
 )
 ```
 
-The table above shows the manual non-parallel calculation. The important difference is that the predictor part changes across thresholds. This happens because the non-parallel model estimates separate effects for each threshold.
+```{r nonparallel-logits-odds-probabilities-table, echo=FALSE}
+nonparallel_calc_table_2 <- data.frame(
+  Threshold = c("Threshold 1", "Threshold 2", "Threshold 3", "Threshold 4"),
+  Intercept = c(0.3888, 2.3647, 4.2791, 7.4781),
+  Logit = c(-0.6592, 1.2774, 3.0789, 6.0608),
+  Odds = c(0.5173, 3.5873, 21.7349, 428.7241),
+  Cum_Prob = c(0.3409, 0.7820, 0.9560, 0.9977)
+)
+
+kable(
+  nonparallel_calc_table_2,
+  caption = "Non-parallel logits, odds and cumulative probabilities for the illustrative person.",
+  digits = 4
+)
+```
+
+The two tables above show the manual non-parallel calculation. The important difference is that the predictor part changes across thresholds. This happens because the non-parallel model estimates separate effects for each threshold.
 
 As with the parallel model, exponentiating the cumulative logits gives cumulative odds. The cumulative odds can then be converted to cumulative probabilities. However, these are still cumulative probabilities. To decide the most likely health category, the category probabilities must be calculated.
 
