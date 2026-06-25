@@ -76,6 +76,10 @@ Overall, we found that cumulative logit ordinal regression was suitable for this
 
 
 
+# Acknowledgements
+
+We would like to sincerely thank our supervisor, Dr. Paul Wilson, for his guidance and support throughout this project. His detailed explanations, notes, essential code, and feedback helped us understand the modelling approach, interpretation of results, and improvements needed at each milestone. We are also grateful for his patience, time, and supervision throughout every stage of the project.
+
 # Introduction
 
 Self-reported health is a common measure used in public health and health survey research. It is usually collected by asking people to describe their general health using categories such as Excellent, Very good, Good, Fair and Poor. Although the measure is subjective, it is useful because it reflects how people judge their own health condition. This judgement may be influenced by physical health, lifestyle, long-term illness, mental wellbeing and social factors.
